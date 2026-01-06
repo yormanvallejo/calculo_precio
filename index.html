@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventario Pro - Mobile Optimized</title>
+    <title>Inventario Pro - Redondeo Dinámico</title>
     <!-- Dependencias para ejecución local sin servidor -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -26,7 +26,6 @@
         
         .calculated-cell { background-color: #f1f5f9; font-weight: 600; color: #475569; }
         
-        /* Columnas Inmovilizadas Ajustadas (Escritorio) */
         @media (min-width: 768px) {
             .sticky-comicion-col { position: sticky; left: 0; background: white; z-index: 20; border-right: 1px solid #e2e8f0; min-width: 80px; width: 80px; }
             .sticky-articulo { position: sticky; left: 80px; background: white; z-index: 20; border-right: 2px solid #f1f5f9; min-width: 250px; width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.03); }
@@ -36,17 +35,16 @@
 
         .editable-input { 
             width: 100%; 
-            background: transparent; 
-            border: 1px solid transparent; 
-            padding: 8px; 
+            background: #fff; 
+            border: 1px solid #e2e8f0; 
+            padding: 6px 10px; 
             border-radius: 8px;
             transition: all 0.2s;
             font-size: 0.875rem;
         }
-        .editable-input:hover { border-color: #cbd5e1; background: #fff; }
-        .editable-input:focus { border-color: #6366f1; background: #fff; outline: none; ring: 2px; ring-color: rgba(99, 102, 241, 0.1); }
+        .editable-input:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+        .read-only-text { padding: 6px 10px; font-size: 0.875rem; display: block; width: 100%; }
 
-        /* Estilos Móvil */
         .mobile-card {
             background: white;
             border-radius: 1.5rem;
@@ -55,23 +53,36 @@
             border: 1px solid #e2e8f0;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
+
+        .badge-rounded {
+            background-color: #fef3c7;
+            color: #92400e;
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 6px;
+            border: 1px solid #fcd34d;
+        }
     </style>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo, useEffect, useCallback } = React;
+        const { useState, useMemo, useEffect } = React;
 
         const App = () => {
             const [data, setData] = useState([]);
             const [tasa, setTasa] = useState(310.00); 
             const [globalComicion, setGlobalComicion] = useState(0.07); 
             const [filter, setFilter] = useState('');
+            const [filterTipo, setFilterTipo] = useState('TODOS');
             const [view, setView] = useState('summary'); 
+            const [isEditing, setIsEditing] = useState(false);
+            const [roundTo10, setRoundTo10] = useState(false); // Estado para el redondeo de 10 en 10
             const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-            // Listener para responsive
             useEffect(() => {
                 const handleResize = () => setIsMobile(window.innerWidth < 768);
                 window.addEventListener('resize', handleResize);
@@ -79,22 +90,41 @@
             }, []);
 
             useEffect(() => {
-                const savedTasa = localStorage.getItem('app_tasa_v4');
-                const savedGlobalCom = localStorage.getItem('app_global_com_v4');
+                const savedTasa = localStorage.getItem('app_tasa_v7');
+                const savedGlobalCom = localStorage.getItem('app_global_com_v7');
+                const savedRounding = localStorage.getItem('app_rounding');
                 if (savedTasa) setTasa(parseFloat(savedTasa));
                 if (savedGlobalCom) setGlobalComicion(parseFloat(savedGlobalCom));
+                if (savedRounding) setRoundTo10(savedRounding === 'true');
             }, []);
 
-            const calculateItem = (item, gTasa = tasa, gCom = globalComicion) => {
+            const rd = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
+
+            const calculateItem = (item, gTasa = tasa, gCom = globalComicion, changedField = null) => {
                 const row = { ...item };
-                row.subtotal = (parseFloat(row.pUnitarioBs) || 0) * (parseFloat(row.cantidad) || 0);
-                row.valorTotal = row.subtotal + (parseFloat(row.iva) || 0);
-                row.costoTotalUsd = (parseFloat(row.tasaCompra) || 0) > 0 ? row.valorTotal / row.tasaCompra : 0;
-                row.venta = (parseFloat(row.comicion) || 0) > 0 ? row.costoTotalUsd / row.comicion : 0;
-                row.comicion2 = row.venta * gCom;
-                row.ganacia = row.venta - (row.costoTotalUsd + row.comicion2);
-                row.unitarioUsd = (parseFloat(row.unida) || 0) > 0 ? row.venta / row.unida : 0;
-                row.precioUnitarioBs = row.unitarioUsd * gTasa;
+                
+                if (changedField === 'valorTotalBs' || changedField === 'tasaCompra' || changedField === null) {
+                    const vTotal = parseFloat(row.valorTotalBs) || 0;
+                    const tComp = parseFloat(row.tasaCompra) || 1;
+                    row.costoTotalUsd = tComp > 0 ? rd(vTotal / tComp) : 0;
+                }
+
+                const comFact = parseFloat(row.comicionFactor) || 1;
+                row.venta = comFact > 0 ? rd(row.costoTotalUsd / comFact) : 0;
+                row.comicionCalc = rd(row.venta * gCom);
+                row.ganacia = rd(row.venta - (row.costoTotalUsd + row.comicionCalc));
+                
+                const units = parseFloat(row.unida) || 1;
+                row.unitarioUsd = units > 0 ? rd(row.venta / units) : 0;
+                row.precioUnitarioBs = rd(row.unitarioUsd * gTasa);
+
+                if (row.tipo && row.tipo.toUpperCase() === 'CIGARROS') {
+                    const pctInd = parseFloat(row.pctIndividual) || 0;
+                    row.individualBs = rd((row.precioUnitarioBs / 20) / (1 - pctInd));
+                } else {
+                    row.pctIndividual = '';
+                }
+                
                 return row;
             };
 
@@ -120,7 +150,7 @@
 
                         if (raw[0]) {
                             if (raw[0][3] !== undefined) setTasa(parseFloat(raw[0][3]) || tasa);
-                            if (raw[0][6] !== undefined) setGlobalComicion(parseFloat(raw[0][6]) || globalComicion);
+                            if (raw[0][8] !== undefined) setGlobalComicion(parseFloat(raw[0][8]) || globalComicion);
                         }
 
                         const headers = raw[headerIdx].map(h => String(h || '').trim());
@@ -128,93 +158,150 @@
                         const find = (n) => headers.findIndex(h => h.toLowerCase().trim() === n.toLowerCase().trim());
 
                         const mapping = {
-                            tipo: find('tipo'), comicion: find('Comicion'), comercio: find('Comercio'),
-                            fecha: find('Fecha'), articulo: find('Artículo') !== -1 ? find('Artículo') : find('Articulo'),
-                            cantidad: find('Cantidad'), unida: find('Unida'), pUnitarioBs: find('P, Unitario (Bs,)'),
-                            iva: find('IVA (%)'), tasaCompra: find('Tasa compra')
+                            tipo: find('tipo'), 
+                            comicionFactor: find('Comicion'),
+                            comercio: find('Comercio'),
+                            articulo: find('Artículo') !== -1 ? find('Artículo') : find('Articulo'),
+                            unida: find('Unida'),
+                            valorTotalBs: find('Valor Total'),
+                            tasaCompra: find('Tasa compra'),
+                            costoTotalUsd: find('costoTotal $'),
+                            pctIndividual: find('% INDIVIDUAL'),
+                            individualBs: find('INDIVIDUAL')
                         };
 
                         const formatted = rows.filter(r => r[mapping.articulo]).map((r, i) => {
                             let obj = { id: Date.now() + i };
-                            Object.keys(mapping).forEach(k => obj[k] = r[mapping[k]] || (k === 'iva' ? '0' : ''));
+                            Object.keys(mapping).forEach(k => {
+                                let val = r[mapping[k]];
+                                if (['comicionFactor', 'unida', 'valorTotalBs', 'tasaCompra', 'costoTotalUsd', 'pctIndividual', 'individualBs'].includes(k)) {
+                                    obj[k] = parseFloat(String(val).replace(',', '.')) || (k === 'pctIndividual' ? '' : 0);
+                                } else {
+                                    obj[k] = val || '';
+                                }
+                            });
                             return calculateItem(obj);
                         });
                         setData(formatted);
-                    } catch (err) { alert("Error al cargar"); }
+                    } catch (err) { alert("Error al procesar el archivo."); }
                 };
                 reader.readAsBinaryString(file);
             };
 
             const addNewItem = () => {
                 const newItem = calculateItem({
-                    id: Date.now(), tipo: 'NUEVO', comicion: 0.65, comercio: '-', fecha: new Date().toLocaleDateString(),
-                    articulo: 'Nuevo Artículo', cantidad: 1, unida: 1, pUnitarioBs: 0, iva: 0, tasaCompra: tasa
+                    id: Date.now(), tipo: 'COMIDA', comicionFactor: 0.65, comercio: '-', 
+                    articulo: 'Nuevo Artículo', unida: 1, valorTotalBs: 0, tasaCompra: tasa, costoTotalUsd: 0, pctIndividual: '', individualBs: 0
                 });
                 setData([...data, newItem]);
                 setView('details');
+                setIsEditing(true);
             };
 
             const updateField = (id, field, value) => {
-                setData(prev => prev.map(item => item.id === id ? calculateItem({ ...item, [field]: value }) : item));
+                setData(prev => prev.map(item => item.id === id ? calculateItem({ ...item, [field]: value }, tasa, globalComicion, field) : item));
+            };
+
+            const toggleRounding = () => {
+                const newState = !roundTo10;
+                setRoundTo10(newState);
+                localStorage.setItem('app_rounding', String(newState));
+            };
+
+            const applyRounding = (val) => {
+                if (!roundTo10) return val;
+                return Math.round(val / 10) * 10;
+            };
+
+            const fmt = (v, c = '$') => {
+                let val = parseFloat(v) || 0;
+                if (c === 'VES') val = applyRounding(val);
+                return new Intl.NumberFormat('es-VE', { minimumFractionDigits: roundTo10 && c === 'VES' ? 0 : 2, maximumFractionDigits: roundTo10 && c === 'VES' ? 0 : 2 }).format(val) + (c === '$' ? ' $' : ' Bs.');
             };
 
             const exportExcelWithFormulas = () => {
                 if (data.length === 0) return;
                 const headers = [
-                    "tipo", "Comicion", "Comercio", "Fecha", "Artículo", "Cantidad", "Unida", "P, Unitario (Bs,)", 
-                    "IVA (%)", "subtotal", "Valor Total", "Tasa compra", "costoTotal $", "Comicion", "Ganacia", "cero", 
-                    "Venta", "unitario$", "precio unitario BS"
+                    "tipo", "Comicion", "Comercio", "Artículo", "Unida", "Valor Total", "Tasa compra", "costoTotal $", 
+                    "Comicion", "Ganacia", "cero", "Venta", "unitario$", "precio unitario BS", "% INDIVIDUAL", "INDIVIDUAL"
                 ];
                 const wb = XLSX.utils.book_new();
-                const wsData = [["", "TASA", "", tasa, "", "Comicion", globalComicion], headers];
+                const wsData = [["", "TASA", "", tasa, "", "", "Comicion", "", globalComicion], headers];
                 const ws = XLSX.utils.aoa_to_sheet(wsData);
                 data.forEach((item, idx) => {
                     const r = idx + 3;
                     const row = [
-                        item.tipo, item.comicion, item.comercio, item.fecha, item.articulo, item.cantidad, item.unida, item.pUnitarioBs, item.iva,
-                        { f: `H${r}*F${r}` }, { f: `J${r}+I${r}` }, item.tasaCompra, { f: `K${r}/L${r}` }, { f: `Q${r}*$G$1` }, 
-                        { f: `Q${r}-(M${r}+N${r})` }, 0, { f: `M${r}/B${r}` }, { f: `Q${r}/G${r}` }, { f: `R${r}*$D$1` }
+                        item.tipo, item.comicionFactor, item.comercio, item.articulo, item.unida, item.valorTotalBs, item.tasaCompra,
+                        item.costoTotalUsd, { f: `L${r}*$I$1` }, { f: `L${r}-(H${r}+I${r})` }, 0, { f: `H${r}/B${r}` }, { f: `L${r}/E${r}` }, { f: `M${r}*$D$1` }, 
+                        item.pctIndividual, item.individualBs
                     ];
                     XLSX.utils.sheet_add_aoa(ws, [row], { origin: -1 });
                 });
                 XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-                XLSX.writeFile(wb, `Inventario_${new Date().toISOString().slice(0,10)}.xlsx`);
+                XLSX.writeFile(wb, `Inventario_Final_${new Date().toISOString().slice(0,10)}.xlsx`);
             };
 
-            const filteredData = useMemo(() => {
-                const q = filter.toLowerCase();
-                return data.filter(i => String(i.articulo).toLowerCase().includes(q) || String(i.tipo).toLowerCase().includes(q));
-            }, [data, filter]);
+            const uniqueTipos = useMemo(() => {
+                const ts = new Set(data.map(d => String(d.tipo || '').toUpperCase().trim()));
+                return ['TODOS', ...Array.from(ts).filter(Boolean).sort()];
+            }, [data]);
 
-            const fmt = (v, c = '$') => new Intl.NumberFormat('es-VE', { style: 'currency', currency: c === '$' ? 'USD' : 'VES' }).format(v).replace('USD', '$').replace('VES', 'Bs.');
+            const filteredData = useMemo(() => {
+                return data.filter(i => {
+                    const matchText = String(i.articulo).toLowerCase().includes(filter.toLowerCase()) || String(i.tipo).toLowerCase().includes(filter.toLowerCase());
+                    const matchTipo = filterTipo === 'TODOS' || String(i.tipo || '').toUpperCase().trim() === filterTipo;
+                    return matchText && matchTipo;
+                });
+            }, [data, filter, filterTipo]);
+
+            const Field = ({ id, field, value, type = "text", bold = false, color = "text-slate-800" }) => {
+                if (!isEditing) return <span className={`read-only-text ${bold ? 'font-bold' : ''} ${color}`}>{type === 'number' && field !== 'pctIndividual' ? fmt(value, field.includes('Usd') ? '$' : 'VES') : value}</span>;
+                return <input type={type} step="0.01" className={`editable-input ${bold ? 'font-bold' : ''} ${color}`} value={value} onChange={e => updateField(id, field, type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value)} />;
+            };
 
             return (
                 <div className="min-h-screen flex flex-col">
                     <header className="glass sticky top-0 z-50 px-4 py-4 md:px-6">
                         <div className="max-w-[1800px] mx-auto flex flex-col gap-4 lg:flex-row items-center justify-between">
                             <div className="flex items-center gap-3 w-full lg:w-auto">
-                                <div className="bg-indigo-600 p-2.5 rounded-xl shadow-lg">
+                                <div className="bg-indigo-600 p-2 rounded-xl">
                                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                 </div>
-                                <h1 className="text-lg font-bold text-slate-800 tracking-tight">Inventario <span className="text-indigo-600">Pro</span></h1>
+                                <h1 className="text-lg font-bold text-slate-800">Inventario <span className="text-indigo-600">Pro</span></h1>
                             </div>
 
-                            <div className="flex-1 max-w-md w-full relative">
-                                <input type="text" placeholder="Buscar..." className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm outline-none" value={filter} onChange={(e) => setFilter(e.target.value)} />
-                                <svg className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <div className="flex-1 max-w-xl w-full flex flex-col sm:flex-row gap-2">
+                                <div className="relative flex-1">
+                                    <input type="text" placeholder="Buscar artículo..." className="w-full pl-9 pr-4 py-2.5 bg-slate-100 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm outline-none" value={filter} onChange={(e) => setFilter(e.target.value)} />
+                                    <svg className="w-4 h-4 absolute left-3 top-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase hidden sm:block">Tipo:</span>
+                                    <select value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)} className="bg-slate-100 border-none rounded-xl text-xs font-bold px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none min-w-[120px]">
+                                        {uniqueTipos.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </div>
                             </div>
 
-                            <div className="flex items-center gap-3 overflow-x-auto pb-2 md:pb-0 w-full lg:w-auto">
+                            <div className="flex items-center gap-3 overflow-x-auto pb-1 md:pb-0">
+                                <button 
+                                    onClick={toggleRounding} 
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${roundTo10 ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-400 shadow-md' : 'bg-slate-100 text-slate-500 border hover:bg-slate-200'}`}
+                                    title="Redondear montos Bs de 10 en 10"
+                                >
+                                    <svg className={`w-4 h-4 ${roundTo10 ? 'text-amber-600' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    Redondeo (10)
+                                </button>
                                 <div className="flex bg-slate-100 p-1 rounded-xl border shrink-0">
                                     <button onClick={() => setView('summary')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${view === 'summary' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Resumen</button>
                                     <button onClick={() => setView('details')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${view === 'details' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Detalles</button>
                                 </div>
                                 <div className="bg-slate-50 border px-2 py-1 rounded-lg flex flex-col items-center shrink-0">
-                                    <span className="text-[8px] font-bold text-slate-400 uppercase">Tasa</span>
-                                    <input type="number" className="w-14 bg-transparent text-center font-bold text-indigo-600 text-xs outline-none" value={tasa} onChange={(e) => setTasa(parseFloat(e.target.value) || 0)} />
+                                    <span className="text-[7px] font-bold text-slate-400 uppercase">Tasa</span>
+                                    <input type="number" className="w-12 bg-transparent text-center font-bold text-indigo-600 text-[11px] outline-none" value={tasa} onChange={(e) => { setTasa(parseFloat(e.target.value) || 0); localStorage.setItem('app_tasa_v7', e.target.value); }} />
                                 </div>
                                 {data.length > 0 && (
-                                    <button onClick={exportExcelWithFormulas} className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm shrink-0">Excel</button>
+                                    <button onClick={exportExcelWithFormulas} className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-sm shrink-0 hover:bg-emerald-700 transition-colors">Excel</button>
                                 )}
                             </div>
                         </div>
@@ -222,151 +309,160 @@
 
                     <main className="max-w-[1800px] mx-auto w-full px-4 py-6 md:px-6 md:py-10 flex-grow">
                         {data.length === 0 ? (
-                            <div className="h-[50vh] flex flex-col items-center justify-center bg-white border border-slate-200 rounded-3xl animate-fade text-center p-6">
-                                <h2 className="text-xl font-extrabold text-slate-800 mb-2">Comienza tu Gestión</h2>
-                                <p className="text-slate-500 mb-8 text-sm">Sube tu archivo o crea un artículo nuevo.</p>
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    <label className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold cursor-pointer text-sm">
-                                        Cargar Excel
-                                        <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileUpload} />
-                                    </label>
-                                    <button onClick={addNewItem} className="bg-white border-2 border-indigo-600 text-indigo-600 px-6 py-3 rounded-2xl font-bold text-sm">
-                                        Nuevo Ítem
-                                    </button>
+                            <div className="h-[50vh] flex flex-col items-center justify-center bg-white border border-slate-200 rounded-3xl animate-fade p-6 text-center shadow-sm">
+                                <div className="bg-indigo-50 p-4 rounded-full mb-4">
+                                    <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                 </div>
+                                <h2 className="text-xl font-extrabold text-slate-800 mb-2">Comienza ahora</h2>
+                                <p className="text-slate-500 mb-8 text-sm max-w-xs">Sube tu archivo Excel de inventario para empezar a gestionar tus precios.</p>
+                                <label className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold cursor-pointer text-sm shadow-lg shadow-indigo-100 mb-3 hover:bg-indigo-700 transition-all active:scale-95">
+                                    Subir Excel
+                                    <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileUpload} />
+                                </label>
+                                <button onClick={addNewItem} className="text-indigo-600 font-bold text-sm hover:underline">Crear ítem manualmente</button>
                             </div>
                         ) : (
                             <div className="animate-fade">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-xl font-extrabold text-slate-800">{view === 'summary' ? 'Resumen' : 'Detalles'}</h2>
-                                    <button onClick={addNewItem} className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold">+ Nuevo</button>
+                                <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <h2 className="text-xl font-extrabold text-slate-800">{view === 'summary' ? 'Resumen de Precios' : 'Panel de Gestión'}</h2>
+                                        <span className="bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-bold">{filteredData.length} ítems</span>
+                                        {roundTo10 && <span className="badge-rounded animate-pulse">Redondeo ±10</span>}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {view === 'details' && (
+                                            <button onClick={() => setIsEditing(!isEditing)} className={`${isEditing ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-indigo-500 hover:bg-indigo-600'} text-white px-4 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 active:scale-95`}>
+                                                {isEditing ? (
+                                                    <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"></path></svg> Guardar Cambios</>
+                                                ) : (
+                                                    <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg> Editar Todo</>
+                                                )}
+                                            </button>
+                                        )}
+                                        <button onClick={addNewItem} className="bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-1.5 rounded-xl text-xs font-bold transition-all">+ Nuevo</button>
+                                    </div>
                                 </div>
 
                                 {view === 'summary' ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-12">
                                         {filteredData.map(item => (
-                                            <div key={item.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+                                            <div key={item.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <span className="bg-slate-100 text-slate-500 text-[9px] px-2 py-1 rounded font-black uppercase">{item.tipo || '-'}</span>
-                                                    <span className="text-[9px] text-slate-400 font-bold">{item.comercio}</span>
+                                                    <span className="bg-slate-50 text-slate-400 text-[9px] px-2 py-1 rounded font-black uppercase tracking-tight">{item.tipo || 'GENERAL'}</span>
                                                 </div>
-                                                <h3 className="font-bold text-slate-800 text-sm mb-4 line-clamp-2 h-10">{item.articulo}</h3>
+                                                <h3 className="font-bold text-slate-800 text-sm mb-4 h-10 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">{item.articulo}</h3>
                                                 <div className="space-y-2 pt-3 border-t">
                                                     <div className="flex justify-between items-center"><span className="text-[9px] font-bold text-slate-400 uppercase">Unitario $</span><span className="font-black text-slate-900">{fmt(item.unitarioUsd, '$')}</span></div>
                                                     <div className="flex justify-between items-center bg-indigo-50 p-2 rounded-xl"><span className="text-[9px] font-black text-indigo-400 uppercase">Unitario Bs</span><span className="font-black text-indigo-600">{fmt(item.precioUnitarioBs, 'VES')}</span></div>
+                                                    {String(item.tipo || '').toUpperCase() === 'CIGARROS' && (
+                                                        <div className="flex justify-between items-center bg-amber-50 p-2 rounded-xl border border-amber-100 animate-fade"><span className="text-[9px] font-black text-amber-600 uppercase">Individual</span><span className="font-black text-amber-700">{fmt(item.individualBs, 'VES')}</span></div>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
                                     isMobile ? (
-                                        <div className="space-y-4">
+                                        <div className="space-y-4 pb-24">
                                             {filteredData.map(item => (
                                                 <div key={item.id} className="mobile-card">
-                                                    <div className="flex justify-between mb-3">
-                                                        <span className="text-[10px] font-black text-indigo-500 uppercase">{item.tipo}</span>
-                                                        <button onClick={() => setData(data.filter(i => i.id !== item.id))} className="text-red-400 p-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                                    <div className="flex justify-between items-center mb-3 border-b pb-2">
+                                                        <div className="flex-1 mr-2">
+                                                            <Field id={item.id} field="tipo" value={item.tipo} bold color="text-indigo-500 uppercase text-[10px]" />
+                                                        </div>
+                                                        <button onClick={() => setData(data.filter(i => i.id !== item.id))} className="text-red-300 p-2 hover:text-red-500 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                                                     </div>
                                                     <div className="mb-4">
-                                                        <label className="text-[10px] font-bold text-slate-400 block mb-1">ARTÍCULO</label>
-                                                        <input className="editable-input font-bold text-slate-800 bg-slate-50" value={item.articulo} onChange={e => updateField(item.id, 'articulo', e.target.value)} />
+                                                        <label className="text-[8px] font-black text-slate-400 block mb-1 uppercase tracking-wider">Descripción del Artículo</label>
+                                                        <Field id={item.id} field="articulo" value={item.articulo} bold />
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 block mb-1">COMICION (B)</label>
-                                                            <input type="number" step="0.01" className="editable-input font-bold text-indigo-600 bg-slate-50" value={item.comicion} onChange={e => updateField(item.id, 'comicion', parseFloat(e.target.value) || 0)} />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 block mb-1">CANTIDAD</label>
-                                                            <input type="number" className="editable-input font-bold text-indigo-600 bg-slate-50" value={item.cantidad} onChange={e => updateField(item.id, 'cantidad', parseFloat(e.target.value) || 0)} />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 block mb-1">P. UNIT BS</label>
-                                                            <input type="number" className="editable-input font-bold text-indigo-600 bg-slate-50" value={item.pUnitarioBs} onChange={e => updateField(item.id, 'pUnitarioBs', parseFloat(e.target.value) || 0)} />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 block mb-1">TASA C</label>
-                                                            <input type="number" className="editable-input font-bold text-indigo-600 bg-slate-50" value={item.tasaCompra} onChange={e => updateField(item.id, 'tasaCompra', parseFloat(e.target.value) || 0)} />
-                                                        </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div><label className="text-[8px] font-bold text-slate-400 block mb-0.5 uppercase">Comicion (B)</label><Field id={item.id} field="comicionFactor" value={item.comicionFactor} type="number" color="text-indigo-600" /></div>
+                                                        <div><label className="text-[8px] font-bold text-slate-400 block mb-0.5 uppercase">Unid (E)</label><Field id={item.id} field="unida" value={item.unida} type="number" color="text-indigo-600" /></div>
+                                                        <div><label className="text-[8px] font-bold text-slate-400 block mb-0.5 uppercase">Val. Tot (F)</label><Field id={item.id} field="valorTotalBs" value={item.valorTotalBs} type="number" color="text-indigo-600" /></div>
+                                                        <div><label className="text-[8px] font-bold text-slate-400 block mb-0.5 uppercase">Costo $ (H)</label><Field id={item.id} field="costoTotalUsd" value={item.costoTotalUsd} type="number" color="text-emerald-600" /></div>
+                                                        {String(item.tipo || '').toUpperCase() === 'CIGARROS' && (
+                                                            <div className="col-span-2 bg-amber-50 p-2.5 rounded-xl mt-1 border border-amber-100">
+                                                                <div className="flex justify-between items-center mb-1">
+                                                                    <label className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">% Individual (Divisor)</label>
+                                                                    <span className="text-[7px] text-amber-400 italic">Usado en fórmula</span>
+                                                                </div>
+                                                                <Field id={item.id} field="pctIndividual" value={item.pctIndividual} type="number" color="text-amber-700" />
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <div className="flex justify-between items-center pt-3 border-t bg-indigo-50/30 -mx-5 px-5 rounded-b-[1.5rem]">
-                                                        <div>
-                                                            <span className="text-[9px] font-bold text-slate-400 block">UNITARIO FINAL</span>
-                                                            <span className="text-lg font-black text-indigo-600">{fmt(item.precioUnitarioBs, 'VES')}</span>
+                                                    {!isEditing && (
+                                                        <div className="flex justify-between items-center pt-3 border-t bg-slate-50 -mx-5 px-5 rounded-b-[1.5rem] mt-4">
+                                                            <div>
+                                                                <span className="text-[8px] font-bold text-slate-400 uppercase block">Total Bs</span>
+                                                                <span className="text-sm font-black text-indigo-600">{fmt(item.precioUnitarioBs, 'VES')}</span>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="text-[8px] font-bold text-slate-400 uppercase block">Total $</span>
+                                                                <span className="text-sm font-black text-slate-900">{fmt(item.unitarioUsd, '$')}</span>
+                                                            </div>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <span className="text-[9px] font-bold text-slate-400 block">UNITARIO $</span>
-                                                            <span className="text-lg font-black text-slate-900">{fmt(item.unitarioUsd, '$')}</span>
-                                                        </div>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden overflow-x-auto custom-scrollbar">
-                                            <table className="w-full text-left border-collapse text-xs">
+                                        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden overflow-x-auto custom-scrollbar">
+                                            <table className="w-full text-left border-collapse text-[11px]">
                                                 <thead>
-                                                    <tr className="bg-slate-50/50 border-b">
-                                                        <th className="px-3 py-4 font-black text-indigo-600 sticky-comicion-col">Comicion</th>
-                                                        <th className="px-3 py-4 font-black text-slate-800 sticky-articulo">Artículo</th>
-                                                        <th className="px-3 py-4 font-black text-slate-400 uppercase">tipo</th>
-                                                        <th className="px-3 py-4 font-black text-slate-400 uppercase">Comercio</th>
-                                                        <th className="px-3 py-4 font-black text-slate-400 uppercase">Fecha</th>
-                                                        <th className="px-3 py-4 font-black text-indigo-600 uppercase">Cant.</th>
-                                                        <th className="px-3 py-4 font-black text-indigo-600 uppercase">Unida</th>
-                                                        <th className="px-3 py-4 font-black text-indigo-600 uppercase">P.Unit Bs</th>
-                                                        <th className="px-3 py-4 font-black text-indigo-600 uppercase">IVA %</th>
-                                                        <th className="px-3 py-4 font-black text-slate-400 uppercase">subtotal</th>
-                                                        <th className="px-3 py-4 font-black text-slate-400 uppercase">Total Bs</th>
-                                                        <th className="px-3 py-4 font-black text-indigo-600 uppercase">Tasa C</th>
-                                                        <th className="px-3 py-4 font-black text-slate-400 uppercase">Costo T$</th>
-                                                        <th className="px-3 py-4 font-black text-slate-400 uppercase">Venta</th>
-                                                        <th className="px-3 py-4 font-black text-slate-900 uppercase">Unit $</th>
-                                                        <th className="px-3 py-4 font-black text-indigo-700 bg-indigo-50">Unit Bs</th>
+                                                    <tr className="bg-slate-50/80 border-b">
+                                                        <th className="px-3 py-4 font-black text-indigo-600 sticky-comicion-col">Comicion (B)</th>
+                                                        <th className="px-3 py-4 font-black text-slate-800 sticky-articulo">Artículo (D)</th>
+                                                        <th className="px-3 py-4 font-black text-slate-400 uppercase">tipo (A)</th>
+                                                        <th className="px-3 py-4 font-black text-indigo-600 uppercase">Unid (E)</th>
+                                                        <th className="px-3 py-4 font-black text-indigo-600 uppercase">Val.Total (F)</th>
+                                                        <th className="px-3 py-4 font-black text-indigo-600 uppercase">Tasa C (G)</th>
+                                                        <th className="px-3 py-4 font-black text-emerald-600 uppercase bg-emerald-50/30">Costo $ (H)</th>
+                                                        <th className="px-3 py-4 font-black text-slate-400 uppercase">Ganacia (J)</th>
+                                                        <th className="px-3 py-4 font-black text-slate-900 uppercase">Unit $ (M)</th>
+                                                        <th className="px-3 py-4 font-black text-indigo-700 bg-indigo-50 uppercase">Unit Bs (N)</th>
+                                                        <th className="px-3 py-4 font-black text-amber-600 uppercase bg-amber-50">% IND (O)</th>
+                                                        <th className="px-3 py-4 font-black text-amber-700 uppercase bg-amber-50">IND (P)</th>
                                                         <th className="px-3 py-4"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100">
                                                     {filteredData.map(item => (
-                                                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
-                                                            <td className="px-2 py-3 sticky-comicion-col">
-                                                                <input type="number" step="0.01" className="editable-input font-bold text-indigo-600" value={item.comicion} onChange={e => updateField(item.id, 'comicion', parseFloat(e.target.value) || 0)} />
+                                                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-2 py-2 sticky-comicion-col">
+                                                                <Field id={item.id} field="comicionFactor" value={item.comicionFactor} type="number" color="text-indigo-600" />
                                                             </td>
-                                                            <td className="px-2 py-3 sticky-articulo">
-                                                                <input className="editable-input font-bold text-slate-800" value={item.articulo} onChange={e => updateField(item.id, 'articulo', e.target.value)} />
+                                                            <td className="px-2 py-2 sticky-articulo">
+                                                                <Field id={item.id} field="articulo" value={item.articulo} bold />
                                                             </td>
-                                                            <td className="px-2 py-3">
-                                                                <input className="editable-input font-bold uppercase text-slate-500" value={item.tipo} onChange={e => updateField(item.id, 'tipo', e.target.value)} />
+                                                            <td className="px-2 py-2 w-28">
+                                                                <Field id={item.id} field="tipo" value={item.tipo} bold color="text-slate-400 uppercase" />
                                                             </td>
-                                                            <td className="px-2 py-3">
-                                                                <input className="editable-input text-slate-500" value={item.comercio} onChange={e => updateField(item.id, 'comercio', e.target.value)} />
+                                                            <td className="px-2 py-2 w-16">
+                                                                <Field id={item.id} field="unida" value={item.unida} type="number" color="text-indigo-600" />
                                                             </td>
-                                                            <td className="px-2 py-3">
-                                                                <input className="editable-input text-slate-400" value={item.fecha} onChange={e => updateField(item.id, 'fecha', e.target.value)} />
+                                                            <td className="px-2 py-2 w-24">
+                                                                <Field id={item.id} field="valorTotalBs" value={item.valorTotalBs} type="number" color="text-indigo-600" />
                                                             </td>
-                                                            <td className="px-2 py-3 w-16">
-                                                                <input type="number" className="editable-input font-bold text-indigo-600" value={item.cantidad} onChange={e => updateField(item.id, 'cantidad', parseFloat(e.target.value) || 0)} />
+                                                            <td className="px-2 py-2 w-24">
+                                                                <Field id={item.id} field="tasaCompra" value={item.tasaCompra} type="number" color="text-indigo-600" />
                                                             </td>
-                                                            <td className="px-2 py-3 w-16">
-                                                                <input type="number" className="editable-input font-bold text-indigo-600" value={item.unida} onChange={e => updateField(item.id, 'unida', parseFloat(e.target.value) || 0)} />
+                                                            <td className="px-2 py-2 w-24 bg-emerald-50/20">
+                                                                <Field id={item.id} field="costoTotalUsd" value={item.costoTotalUsd} type="number" color="text-emerald-600" />
                                                             </td>
-                                                            <td className="px-2 py-3 w-24">
-                                                                <input type="number" className="editable-input font-bold text-indigo-600" value={item.pUnitarioBs} onChange={e => updateField(item.id, 'pUnitarioBs', parseFloat(e.target.value) || 0)} />
+                                                            <td className="px-3 py-2 calculated-cell">{rd(item.ganacia).toFixed(2)}</td>
+                                                            <td className="px-3 py-2 font-black text-slate-900">{rd(item.unitarioUsd).toFixed(2)}</td>
+                                                            <td className="px-3 py-2 bg-indigo-50/50 font-black text-indigo-700">{fmt(item.precioUnitarioBs, 'VES')}</td>
+                                                            <td className="px-2 py-2 w-24 bg-amber-50/20">
+                                                                <Field id={item.id} field="pctIndividual" value={item.pctIndividual} type="number" color="text-amber-700" />
                                                             </td>
-                                                            <td className="px-2 py-3 w-16">
-                                                                <input type="number" className="editable-input font-bold text-indigo-600" value={item.iva} onChange={e => updateField(item.id, 'iva', parseFloat(e.target.value) || 0)} />
+                                                            <td className="px-3 py-2 bg-amber-50 font-bold text-amber-700">
+                                                                {String(item.tipo || '').toUpperCase() === 'CIGARROS' ? fmt(item.individualBs, 'VES') : '-'}
                                                             </td>
-                                                            <td className="px-3 py-3 calculated-cell whitespace-nowrap">{fmt(item.subtotal, 'VES')}</td>
-                                                            <td className="px-3 py-3 calculated-cell whitespace-nowrap">{fmt(item.valorTotal, 'VES')}</td>
-                                                            <td className="px-2 py-3 w-24">
-                                                                <input type="number" className="editable-input font-bold text-indigo-600" value={item.tasaCompra} onChange={e => updateField(item.id, 'tasaCompra', parseFloat(e.target.value) || 0)} />
-                                                            </td>
-                                                            <td className="px-3 py-3 calculated-cell whitespace-nowrap">{fmt(item.costoTotalUsd, 'USD')}</td>
-                                                            <td className="px-3 py-3 calculated-cell whitespace-nowrap">{fmt(item.venta, 'USD')}</td>
-                                                            <td className="px-3 py-3 calculated-cell whitespace-nowrap font-black text-slate-900">{fmt(item.unitarioUsd, 'USD')}</td>
-                                                            <td className="px-3 py-3 bg-indigo-50/50 font-black text-indigo-700 whitespace-nowrap">{fmt(item.precioUnitarioBs, 'VES')}</td>
-                                                            <td className="px-2 py-3">
-                                                                <button onClick={() => setData(data.filter(i => i.id !== item.id))} className="text-red-300 hover:text-red-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                                            <td className="px-2 py-2 text-right">
+                                                                <button onClick={() => setData(data.filter(i => i.id !== item.id))} className="text-red-300 hover:text-red-500 transition-all p-1">
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                                </button>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -379,8 +475,8 @@
                         )}
                     </main>
 
-                    <footer className="py-6 px-4 text-center border-t border-slate-100 bg-white">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">© {new Date().getFullYear()} Inventario Pro Enterprise</p>
+                    <footer className="py-6 px-4 text-center border-t border-slate-100 bg-white mt-auto">
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest tracking-[0.2em]">© {new Date().getFullYear()} Inventario Pro • Sistema de Gestión Dinámica</p>
                     </footer>
                 </div>
             );
@@ -389,5 +485,6 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
