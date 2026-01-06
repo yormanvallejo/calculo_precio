@@ -52,17 +52,6 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
 
-        .badge-rounded {
-            background-color: #fef3c7;
-            color: #92400e;
-            font-size: 0.65rem;
-            font-weight: 800;
-            padding: 2px 6px;
-            border-radius: 6px;
-            border: 1px solid #fcd34d;
-        }
-
-        /* PESTAÑA BCV PREMIUM (OPTIMIZADA PARA UN SOLO VALOR) */
         .bcv-header-container {
             display: flex;
             justify-content: center;
@@ -150,6 +139,24 @@
         }
         .animate-status { animation: pulse-status 2s infinite ease-in-out; }
 
+        .cart-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 900;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
         @media (max-width: 768px) {
             .bcv-tab { 
                 padding: 10px 24px; 
@@ -170,6 +177,7 @@
 
         const App = () => {
             const [data, setData] = useState([]);
+            const [cart, setCart] = useState([]);
             const [tasa, setTasa] = useState(310.00); 
             const [bcvRates, setBcvRates] = useState({ usd: null });
             const [loadingRates, setLoadingRates] = useState(true);
@@ -191,14 +199,11 @@
                 setLoadingRates(true);
                 try {
                     const usdRes = await fetch('https://ve.dolarapi.com/v1/dolares/oficial').catch(() => null);
-
                     let usdVal = null;
-
                     if (usdRes && usdRes.ok) {
                         const usdData = await usdRes.json();
                         usdVal = usdData.promedio || usdData.venta || usdData.price || usdData.compra || null;
                     }
-
                     if (!usdVal) {
                         const allRes = await fetch('https://ve.dolarapi.com/v1/dolares').catch(() => null);
                         if (allRes && allRes.ok) {
@@ -207,7 +212,6 @@
                             if (oficial) usdVal = oficial.promedio || oficial.venta;
                         }
                     }
-
                     setBcvRates({ usd: usdVal });
                 } catch (err) {
                     console.error('Error fetching BCV rates:', err);
@@ -233,29 +237,24 @@
 
             const calculateItem = (item, gTasa = tasa, gCom = globalComicion, changedField = null) => {
                 const row = { ...item };
-                
                 if (changedField === 'valorTotalBs' || changedField === 'tasaCompra' || changedField === null) {
                     const vTotal = parseFloat(row.valorTotalBs) || 0;
                     const tComp = parseFloat(row.tasaCompra) || 1;
                     row.costoTotalUsd = tComp > 0 ? rd(vTotal / tComp) : 0;
                 }
-
                 const comFact = parseFloat(row.comicionFactor) || 1;
                 row.venta = comFact > 0 ? rd(row.costoTotalUsd / comFact) : 0;
                 row.comicionCalc = rd(row.venta * gCom);
                 row.ganacia = rd(row.venta - (row.costoTotalUsd + row.comicionCalc));
-                
                 const units = parseFloat(row.unida) || 1;
                 row.unitarioUsd = units > 0 ? rd(row.venta / units) : 0;
                 row.precioUnitarioBs = rd(row.unitarioUsd * gTasa);
-
                 if (row.tipo && row.tipo.toUpperCase() === 'CIGARROS') {
                     const pctInd = parseFloat(row.pctIndividual) || 0;
                     row.individualBs = rd((row.precioUnitarioBs / 20) / (1 - pctInd));
                 } else {
                     row.pctIndividual = '';
                 }
-                
                 return row;
             };
 
@@ -275,19 +274,15 @@
                         const wb = XLSX.read(bstr, { type: 'binary' });
                         const ws = wb.Sheets[wb.SheetNames[0]];
                         const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
                         let headerIdx = raw.findIndex(r => r.some(c => String(c || '').toLowerCase().includes('artículo')));
                         if (headerIdx === -1) headerIdx = 1;
-
                         if (raw[0]) {
                             if (raw[0][3] !== undefined) setTasa(parseFloat(raw[0][3]) || tasa);
                             if (raw[0][8] !== undefined) setGlobalComicion(parseFloat(raw[0][8]) || globalComicion);
                         }
-
                         const headers = raw[headerIdx].map(h => String(h || '').trim());
                         const rows = raw.slice(headerIdx + 1);
                         const find = (n) => headers.findIndex(h => h.toLowerCase().trim() === n.toLowerCase().trim());
-
                         const mapping = {
                             tipo: find('tipo'), 
                             comicionFactor: find('Comicion'),
@@ -300,7 +295,6 @@
                             pctIndividual: find('% INDIVIDUAL'),
                             individualBs: find('INDIVIDUAL')
                         };
-
                         const formatted = rows.filter(r => r[mapping.articulo]).map((r, i) => {
                             let obj = { id: Date.now() + i };
                             Object.keys(mapping).forEach(k => {
@@ -329,8 +323,42 @@
                 setIsEditing(true);
             };
 
-            const updateField = (id, field, value) => {
-                setData(prev => prev.map(item => item.id === id ? calculateItem({ ...item, [field]: value }, tasa, globalComicion, field) : item));
+            const addToCart = (product, isIndividual = false) => {
+                setCart(prev => {
+                    const cartId = isIndividual ? `${product.id}_IND` : `${product.id}_UNIT`;
+                    const exists = prev.find(i => i.cartId === cartId);
+                    
+                    const priceBs = isIndividual ? product.individualBs : product.precioUnitarioBs;
+                    const priceUsd = isIndividual ? (product.individualBs / tasa) : product.unitarioUsd;
+                    const label = isIndividual ? `${product.articulo} (INDIVIDUAL)` : product.articulo;
+
+                    if (exists) {
+                        return prev.map(i => i.cartId === cartId ? { ...i, qty: i.qty + 1 } : i);
+                    }
+                    return [...prev, { 
+                        ...product, 
+                        cartId, 
+                        isIndividual, 
+                        qty: 1, 
+                        cartPriceBs: priceBs, 
+                        cartPriceUsd: priceUsd,
+                        cartLabel: label
+                    }];
+                });
+            };
+
+            const removeFromCart = (cartId) => {
+                setCart(prev => prev.filter(i => i.cartId !== cartId));
+            };
+
+            const updateCartQty = (cartId, delta) => {
+                setCart(prev => prev.map(i => {
+                    if (i.cartId === cartId) {
+                        const newQty = Math.max(1, i.qty + delta);
+                        return { ...i, qty: newQty };
+                    }
+                    return i;
+                }));
             };
 
             const toggleRounding = () => {
@@ -350,21 +378,6 @@
                 return new Intl.NumberFormat('es-VE', { minimumFractionDigits: roundTo10 && c === 'VES' ? 0 : 2, maximumFractionDigits: roundTo10 && c === 'VES' ? 0 : 2 }).format(val) + (c === '$' ? ' $' : ' Bs.');
             };
 
-            const exportExcelWithFormulas = () => {
-                if (data.length === 0) return;
-                const headers = ["tipo", "Comicion", "Comercio", "Artículo", "Unida", "Valor Total", "Tasa compra", "costoTotal $", "Comicion", "Ganacia", "cero", "Venta", "unitario$", "precio unitario BS", "% INDIVIDUAL", "INDIVIDUAL"];
-                const wb = XLSX.utils.book_new();
-                const wsData = [["", "TASA", "", tasa, "", "", "Comicion", "", globalComicion], headers];
-                const ws = XLSX.utils.aoa_to_sheet(wsData);
-                data.forEach((item, idx) => {
-                    const r = idx + 3;
-                    const row = [item.tipo, item.comicionFactor, item.comercio, item.articulo, item.unida, item.valorTotalBs, item.tasaCompra, item.costoTotalUsd, { f: `L${r}*$I$1` }, { f: `L${r}-(H${r}+I${r})` }, 0, { f: `H${r}/B${r}` }, { f: `L${r}/E${r}` }, { f: `M${r}*$D$1` }, item.pctIndividual, item.individualBs];
-                    XLSX.utils.sheet_add_aoa(ws, [row], { origin: -1 });
-                });
-                XLSX.utils.book_append_sheet(wb, ws, "Inventario");
-                XLSX.writeFile(wb, `Inventario_${new Date().toISOString().slice(0,10)}.xlsx`);
-            };
-
             const uniqueTipos = useMemo(() => {
                 const ts = new Set(data.map(d => String(d.tipo || '').toUpperCase().trim()));
                 return ['TODOS', ...Array.from(ts).filter(Boolean).sort()];
@@ -378,9 +391,23 @@
                 });
             }, [data, filter, filterTipo]);
 
+            const cartTotals = useMemo(() => {
+                let totalUsd = 0;
+                let totalBs = 0;
+                cart.forEach(item => {
+                    totalUsd += item.cartPriceUsd * item.qty;
+                    totalBs += item.cartPriceBs * item.qty;
+                });
+                return { totalUsd, totalBs };
+            }, [cart]);
+
             const Field = ({ id, field, value, type = "text", bold = false, color = "text-slate-800" }) => {
                 if (!isEditing) return <span className={`read-only-text ${bold ? 'font-bold' : ''} ${color}`}>{type === 'number' && field !== 'pctIndividual' ? fmt(value, field.includes('Usd') ? '$' : 'VES') : value}</span>;
                 return <input type={type} step="0.01" className={`editable-input ${bold ? 'font-bold' : ''} ${color}`} value={value} onChange={e => updateField(id, field, type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value)} />;
+            };
+
+            const updateField = (id, field, value) => {
+                setData(prev => prev.map(item => item.id === id ? calculateItem({ ...item, [field]: value }, tasa, globalComicion, field) : item));
             };
 
             return (
@@ -425,16 +452,17 @@
                                     REDONDEO
                                 </button>
                                 <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shrink-0">
-                                    <button onClick={() => setView('summary')} className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all ${view === 'summary' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>RESUMEN</button>
-                                    <button onClick={() => setView('details')} className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all ${view === 'details' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>DETALLES</button>
+                                    <button onClick={() => setView('summary')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${view === 'summary' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>RESUMEN</button>
+                                    <button onClick={() => setView('details')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${view === 'details' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>DETALLES</button>
+                                    <button onClick={() => setView('cart')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all relative ${view === 'cart' ? 'bg-white shadow-sm text-red-600' : 'text-slate-500 hover:text-slate-700'}`}>
+                                        CARRITO
+                                        {cart.length > 0 && <span className="cart-badge">{cart.reduce((a,b)=>a+b.qty, 0)}</span>}
+                                    </button>
                                 </div>
                                 <div className="bg-white border-2 border-slate-100 px-5 py-2 rounded-2xl flex flex-col items-center shrink-0 shadow-sm">
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-0.5">Tasa Cálculo</span>
                                     <input type="number" className="w-20 bg-transparent text-center font-black text-indigo-600 text-base outline-none" value={tasa} onChange={(e) => { setTasa(parseFloat(e.target.value) || 0); localStorage.setItem('app_tasa_v7', e.target.value); }} />
                                 </div>
-                                {data.length > 0 && (
-                                    <button onClick={exportExcelWithFormulas} className="bg-emerald-600 text-white px-6 py-3.5 rounded-2xl text-xs font-black shadow-lg shadow-emerald-100 shrink-0 hover:bg-emerald-700 hover:-translate-y-0.5 transition-all active:scale-95">EXCEL</button>
-                                )}
                             </div>
                         </div>
                     </header>
@@ -459,26 +487,44 @@
                             <div className="animate-fade">
                                 <div className="flex flex-wrap justify-between items-center mb-12 gap-6">
                                     <div className="flex items-center gap-6">
-                                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">{view === 'summary' ? 'Catálogo de Precios' : 'Administrador Maestro'}</h2>
-                                        <div className="bg-indigo-100 text-indigo-600 text-[12px] px-5 py-2 rounded-full font-black uppercase shadow-inner border border-indigo-200/50">{filteredData.length} PRODUCTOS REGISTRADOS</div>
+                                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+                                            {view === 'summary' ? 'Catálogo de Precios' : view === 'details' ? 'Administrador Maestro' : 'Carrito de Compras'}
+                                        </h2>
+                                        <div className="bg-indigo-100 text-indigo-600 text-[12px] px-5 py-2 rounded-full font-black uppercase shadow-inner border border-indigo-200/50">
+                                            {view === 'cart' ? `${cart.length} ÍTEMS SELECCIONADOS` : `${filteredData.length} PRODUCTOS REGISTRADOS`}
+                                        </div>
                                     </div>
-                                    <div className="flex gap-4">
-                                        {view === 'details' && (
-                                            <button onClick={() => setIsEditing(!isEditing)} className={`${isEditing ? 'bg-emerald-500 hover:bg-emerald-600 ring-8 ring-emerald-50' : 'bg-indigo-600 hover:bg-indigo-700 ring-8 ring-indigo-50'} text-white px-10 py-4 rounded-2xl text-xs font-black transition-all shadow-xl active:scale-95 tracking-widest`}>
-                                                {isEditing ? '✓ FINALIZAR EDICIÓN' : '✎ EDITAR INVENTARIO'}
-                                            </button>
-                                        )}
-                                        <button onClick={addNewItem} className="bg-white border-2 border-slate-100 text-slate-800 hover:bg-slate-50 px-10 py-4 rounded-2xl text-xs font-black transition-all shadow-sm tracking-widest">+ NUEVO ÍTEM</button>
-                                    </div>
+                                    {view !== 'cart' && (
+                                        <div className="flex gap-4">
+                                            {view === 'details' && (
+                                                <button onClick={() => setIsEditing(!isEditing)} className={`${isEditing ? 'bg-emerald-500 hover:bg-emerald-600 ring-8 ring-emerald-50' : 'bg-indigo-600 hover:bg-indigo-700 ring-8 ring-indigo-50'} text-white px-10 py-4 rounded-2xl text-xs font-black transition-all shadow-xl active:scale-95 tracking-widest`}>
+                                                    {isEditing ? '✓ FINALIZAR EDICIÓN' : '✎ EDITAR INVENTARIO'}
+                                                </button>
+                                            )}
+                                            <button onClick={addNewItem} className="bg-white border-2 border-slate-100 text-slate-800 hover:bg-slate-50 px-10 py-4 rounded-2xl text-xs font-black transition-all shadow-sm tracking-widest">+ NUEVO ÍTEM</button>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {view === 'summary' ? (
+                                {view === 'summary' && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-10 pb-40">
                                         {filteredData.map(item => (
                                             <div key={item.id} className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-3 transition-all duration-500 group relative overflow-hidden">
                                                 <div className="absolute -top-12 -right-12 w-40 h-40 bg-indigo-50/50 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-                                                <div className="mb-5 relative">
+                                                <div className="mb-5 relative flex justify-between items-center">
                                                     <span className="bg-indigo-600 text-white text-[10px] px-4 py-2 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-100">{item.tipo || 'CATEGORÍA'}</span>
+                                                    <div className="flex gap-2">
+                                                        {String(item.tipo || '').toUpperCase() === 'CIGARROS' && (
+                                                            <button onClick={() => addToCart(item, true)} className="bg-amber-100 text-amber-600 p-2.5 rounded-2xl hover:bg-amber-600 hover:text-white transition-all shadow-sm flex flex-col items-center justify-center leading-none" title="Añadir Cigarro Individual">
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth="2.5"></path></svg>
+                                                                <span className="text-[6px] font-black mt-0.5">IND</span>
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => addToCart(item)} className="bg-emerald-50 text-emerald-600 p-2.5 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex flex-col items-center justify-center leading-none" title="Añadir Paquete/Unidad">
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth="2.5"></path></svg>
+                                                            {String(item.tipo || '').toUpperCase() === 'CIGARROS' && <span className="text-[6px] font-black mt-0.5">PACK</span>}
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <h3 className="font-extrabold text-slate-900 text-lg mb-10 h-14 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors relative">{item.articulo}</h3>
                                                 <div className="space-y-5 pt-8 border-t-2 border-slate-50 relative">
@@ -497,7 +543,80 @@
                                             </div>
                                         ))}
                                     </div>
-                                ) : (
+                                )}
+
+                                {view === 'cart' && (
+                                    <div className="flex flex-col lg:flex-row gap-10 pb-40">
+                                        <div className="flex-1 space-y-6">
+                                            {cart.length === 0 ? (
+                                                <div className="bg-white p-20 rounded-[3rem] text-center border-2 border-dashed border-slate-100">
+                                                    <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                                                        <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="2"></path></svg>
+                                                    </div>
+                                                    <h3 className="text-xl font-black text-slate-400">El carrito está vacío</h3>
+                                                    <button onClick={() => setView('summary')} className="mt-6 text-indigo-600 font-black uppercase text-sm hover:underline">Ir a buscar productos</button>
+                                                </div>
+                                            ) : (
+                                                cart.map(item => (
+                                                    <div key={item.cartId} className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-6 animate-fade">
+                                                        <div className="flex-1 text-center md:text-left">
+                                                            <div className="flex items-center gap-2 justify-center md:justify-start mb-1">
+                                                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{item.tipo}</span>
+                                                                {item.isIndividual && <span className="bg-amber-100 text-amber-600 text-[8px] px-2 py-0.5 rounded-full font-black uppercase">Individual</span>}
+                                                            </div>
+                                                            <h4 className="font-extrabold text-slate-800 text-lg leading-tight">{item.cartLabel}</h4>
+                                                            <div className="mt-3 flex flex-wrap gap-4 justify-center md:justify-start">
+                                                                <span className="text-sm font-bold text-slate-400">P. Unit: <span className="text-slate-800">{fmt(item.cartPriceUsd, '$')}</span></span>
+                                                                <span className="text-sm font-bold text-slate-400">Bs. Unit: <span className="text-indigo-600">{fmt(item.cartPriceBs, 'VES')}</span></span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center bg-slate-100 rounded-2xl p-1 shrink-0">
+                                                            <button onClick={() => updateCartQty(item.cartId, -1)} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-white hover:text-indigo-600 rounded-xl transition-all font-black text-xl">-</button>
+                                                            <span className="w-12 text-center font-black text-slate-800">{item.qty}</span>
+                                                            <button onClick={() => updateCartQty(item.cartId, 1)} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-white hover:text-indigo-600 rounded-xl transition-all font-black text-xl">+</button>
+                                                        </div>
+                                                        <div className="text-center md:text-right shrink-0 min-w-[150px]">
+                                                            <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Subtotal</div>
+                                                            <div className="text-xl font-black text-indigo-600">{fmt(item.cartPriceBs * item.qty, 'VES')}</div>
+                                                            <div className="text-xs font-bold text-slate-400">{fmt(item.cartPriceUsd * item.qty, '$')}</div>
+                                                        </div>
+                                                        <button onClick={() => removeFromCart(item.cartId)} className="text-red-200 hover:text-red-500 p-2 transition-colors">
+                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="2"></path></svg>
+                                                        </button>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+
+                                        {cart.length > 0 && (
+                                            <div className="lg:w-[400px] shrink-0">
+                                                <div className="bg-indigo-600 p-10 rounded-[3rem] text-white shadow-2xl shadow-indigo-200 sticky top-48 overflow-hidden">
+                                                    <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-20 translate-x-20"></div>
+                                                    <h3 className="text-2xl font-black mb-8 relative">Resumen de Compra</h3>
+                                                    <div className="space-y-6 relative">
+                                                        <div className="flex justify-between items-center opacity-80">
+                                                            <span className="text-xs font-bold uppercase tracking-widest">Total USD</span>
+                                                            <span className="font-black">{fmt(cartTotals.totalUsd, '$')}</span>
+                                                        </div>
+                                                        <div className="h-px bg-white/20"></div>
+                                                        <div className="flex justify-between items-end">
+                                                            <span className="text-xs font-black uppercase tracking-[0.2em]">Total Final Bs</span>
+                                                            <div className="text-right">
+                                                                <div className="text-4xl font-black tracking-tighter">{fmt(cartTotals.totalBs, 'VES')}</div>
+                                                                {roundTo10 && <span className="text-[10px] font-black uppercase text-indigo-200 tracking-widest animate-pulse">Redondeo ±10 Aplicado</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => alert("¡Compra procesada con éxito!")} className="w-full bg-white text-indigo-600 font-black py-5 rounded-[2rem] mt-10 hover:bg-slate-50 transition-all shadow-xl active:scale-95 uppercase tracking-widest text-sm">
+                                                        Confirmar Pedido
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {view === 'details' && (
                                     isMobile ? (
                                         <div className="space-y-6 pb-48">
                                             {filteredData.map(item => (
