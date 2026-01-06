@@ -1,0 +1,5 @@
+{
+  "name": "Excel Inventory Manager",
+  "description": "A professional inventory management tool that parses Excel files to display product summaries, detailed lists, and real-time price conversions based on a customizable exchange rate.",
+  "requestFramePermissions": []
+}
