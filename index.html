@@ -13,44 +13,34 @@
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; font-size: 0.75rem; }
         .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         
         @media (min-width: 768px) {
-            .sticky-comicion-col { position: sticky; left: 0; background: white; z-index: 20; border-right: 1px solid #e2e8f0; min-width: 80px; width: 80px; }
-            .sticky-articulo { position: sticky; left: 80px; background: white; z-index: 20; border-right: 2px solid #f1f5f9; min-width: 250px; width: 250px; box-shadow: 2px 0 5px rgba(0,0,0,0.03); }
-            th.sticky-comicion-col, th.sticky-articulo { z-index: 30; background: #f8fafc; }
-            tr:hover .sticky-comicion-col, tr:hover .sticky-articulo { background: #f8fafc; }
+            .sticky-articulo { position: sticky; left: 0; background: white; z-index: 20; border-right: 1px solid #f1f5f9; min-width: 180px; width: 180px; box-shadow: 2px 0 5px rgba(0,0,0,0.02); }
+            th.sticky-articulo { z-index: 30; background: #f8fafc; }
+            tr:hover .sticky-articulo { background: #f8fafc; }
         }
 
         .editable-input { 
             width: 100%; 
             background: #fff; 
             border: 1px solid #e2e8f0; 
-            padding: 6px 10px; 
-            border-radius: 8px;
+            padding: 3px 6px; 
+            border-radius: 4px;
             transition: all 0.2s;
-            font-size: 0.875rem;
+            font-size: 0.7rem;
         }
-        .editable-input:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
-        .read-only-text { padding: 6px 10px; font-size: 0.875rem; display: block; width: 100%; }
-
-        .mobile-card {
-            background: white;
-            border-radius: 1.5rem;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
+        .editable-input:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1); }
+        .read-only-text { padding: 3px 6px; font-size: 0.7rem; display: block; width: 100%; }
 
         .bcv-header-container {
             display: flex;
@@ -66,105 +56,45 @@
         .bcv-tab {
             background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%);
             color: white;
-            padding: 12px 32px;
-            border-radius: 0 0 24px 24px;
-            box-shadow: 0 15px 35px -5px rgba(30, 58, 138, 0.5);
+            padding: 6px 20px;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 8px 20px -5px rgba(30, 58, 138, 0.4);
             display: flex;
             align-items: center;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-top: none;
-            backdrop-filter: blur(16px);
+            backdrop-filter: blur(10px);
             pointer-events: auto;
             transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             cursor: pointer;
-            min-width: 200px;
+            min-width: 140px;
             justify-content: center;
         }
         
-        .bcv-tab:hover { 
-            padding-bottom: 18px;
-            box-shadow: 0 20px 45px -5px rgba(30, 58, 138, 0.6);
-            border-color: rgba(255, 255, 255, 0.4);
-        }
-
-        .bcv-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
-        
-        .bcv-label {
-            color: #93c5fd;
-            text-transform: uppercase;
-            font-size: 10px;
-            font-weight: 900;
-            letter-spacing: 0.2em;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-        }
-        
-        .bcv-value {
-            font-family: 'JetBrains Mono', monospace;
-            color: #ffffff;
-            font-size: 24px;
-            font-weight: 800;
-            line-height: 1;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: baseline;
-            gap: 4px;
-        }
-
-        .bcv-symbol {
-            font-size: 14px;
-            color: #93c5fd;
-            font-weight: 500;
-        }
-
-        .bcv-status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: #10b981;
-            box-shadow: 0 0 12px #10b981;
-        }
-        
-        @keyframes pulse-status {
-            0% { transform: scale(0.9); opacity: 0.5; }
-            50% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(0.9); opacity: 0.5; }
-        }
+        .bcv-tab:hover { padding-bottom: 10px; }
+        .bcv-item { display: flex; flex-direction: column; align-items: center; gap: 0; }
+        .bcv-label { color: #93c5fd; text-transform: uppercase; font-size: 8px; font-weight: 800; letter-spacing: 0.1em; display: flex; align-items: center; gap: 4px; }
+        .bcv-value { font-family: 'JetBrains Mono', monospace; color: #ffffff; font-size: 14px; font-weight: 700; display: flex; align-items: baseline; gap: 2px; }
+        .bcv-symbol { font-size: 9px; color: #93c5fd; }
+        .bcv-status-dot { width: 5px; height: 5px; border-radius: 50%; background-color: #10b981; }
+        @keyframes pulse-status { 0% { transform: scale(0.9); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.5; } }
         .animate-status { animation: pulse-status 2s infinite ease-in-out; }
 
         .cart-badge {
             position: absolute;
-            top: -5px;
-            right: -5px;
+            top: -3px;
+            right: -3px;
             background: #ef4444;
             color: white;
-            font-size: 10px;
+            font-size: 7px;
             font-weight: 900;
-            width: 18px;
-            height: 18px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        @media (max-width: 768px) {
-            .bcv-tab { 
-                padding: 10px 24px; 
-                border-radius: 0 0 20px 20px;
-                min-width: 180px;
-            }
-            .bcv-value { font-size: 18px; }
-            .bcv-label { font-size: 9px; }
+            border: 1px solid white;
         }
     </style>
 <link rel="stylesheet" href="/index.css">
@@ -173,12 +103,45 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo, useEffect } = React;
+        const { useState, useMemo, useEffect, useCallback } = React;
+
+        // Función de redondeo estricta a 2 decimales
+        const rd = (num) => {
+            const val = parseFloat(num);
+            if (isNaN(val)) return 0;
+            return Math.round((val + Number.EPSILON) * 100) / 100;
+        };
+
+        // Formateador de moneda compartido
+        const fmtPrice = (v, c = '$', round10 = false) => {
+            let val = rd(v);
+            if (c === 'VES' && round10) val = Math.round(val / 10) * 10;
+            return new Intl.NumberFormat('es-VE', { 
+                minimumFractionDigits: (c === 'VES' && round10) ? 0 : 2, 
+                maximumFractionDigits: (c === 'VES' && round10) ? 0 : 2 
+            }).format(val) + (c === '$' ? ' $' : ' Bs.');
+        };
+
+        // Componente TableField fuera de App para evitar pérdida de foco
+        const TableField = ({ id, field, value, type = "text", editable = false, isEditing, color = "text-slate-800", isPrice = false, fmt, isUsdField, onUpdate }) => {
+            if (isEditing && editable) {
+                return (
+                    <input 
+                        type={type} 
+                        step="0.01" 
+                        className="editable-input" 
+                        value={value} 
+                        onChange={e => onUpdate(id, field, e.target.value, type)} 
+                    />
+                );
+            }
+            return <span className={`read-only-text ${color} truncate`}>{isPrice ? fmt(value, isUsdField ? '$' : 'VES') : value}</span>;
+        };
 
         const App = () => {
             const [data, setData] = useState([]);
             const [cart, setCart] = useState([]);
-            const [tasa, setTasa] = useState(310.00); 
+            const [tasa, setTasa] = useState(315.00); 
             const [bcvRates, setBcvRates] = useState({ usd: null });
             const [loadingRates, setLoadingRates] = useState(true);
             const [globalComicion, setGlobalComicion] = useState(0.07); 
@@ -187,43 +150,52 @@
             const [view, setView] = useState('summary'); 
             const [isEditing, setIsEditing] = useState(false);
             const [roundTo10, setRoundTo10] = useState(false); 
-            const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-            useEffect(() => {
-                const handleResize = () => setIsMobile(window.innerWidth < 768);
-                window.addEventListener('resize', handleResize);
-                return () => window.removeEventListener('resize', handleResize);
-            }, []);
 
             const fetchRates = async () => {
                 setLoadingRates(true);
                 try {
                     const usdRes = await fetch('https://ve.dolarapi.com/v1/dolares/oficial').catch(() => null);
-                    let usdVal = null;
                     if (usdRes && usdRes.ok) {
                         const usdData = await usdRes.json();
-                        usdVal = usdData.promedio || usdData.venta || usdData.price || usdData.compra || null;
+                        setBcvRates({ usd: rd(usdData.promedio || usdData.venta || usdData.price || usdData.compra || null) });
                     }
-                    if (!usdVal) {
-                        const allRes = await fetch('https://ve.dolarapi.com/v1/dolares').catch(() => null);
-                        if (allRes && allRes.ok) {
-                            const all = await allRes.json();
-                            const oficial = all.find(d => d.key === 'oficial');
-                            if (oficial) usdVal = oficial.promedio || oficial.venta;
-                        }
-                    }
-                    setBcvRates({ usd: usdVal });
-                } catch (err) {
-                    console.error('Error fetching BCV rates:', err);
-                } finally {
-                    setLoadingRates(false);
-                }
+                } catch (err) { console.error(err); } finally { setLoadingRates(false); }
             };
 
+            const calculateItem = useCallback((item, gTasa = tasa, gCom = globalComicion, changedField = null) => {
+                const row = { ...item };
+                
+                const vTotal = rd(row.valorTotalBs);
+                const tComp = rd(row.tasaCompra) || 1;
+                row.costoTotalUsd = rd(vTotal / tComp);
+
+                const comFact = rd(row.comicionFactor) || 1;
+                row.venta = rd(row.costoTotalUsd / comFact);
+                row.comicionCalc = rd(row.venta * gCom);
+                row.ganacia = rd(row.venta - (row.costoTotalUsd + row.comicionCalc));
+                
+                const units = rd(row.unida) || 1;
+                row.unitarioUsd = rd(row.venta / units);
+                row.precioUnitarioBs = rd(row.unitarioUsd * gTasa);
+                
+                const isCigar = String(row.tipo || '').toUpperCase() === 'CIGARROS';
+                const pctInd = rd(row.pctIndividual);
+
+                if (isCigar) {
+                    row.individualBs = rd((row.precioUnitarioBs / 20) / (1 - pctInd));
+                } else if (pctInd > 0) {
+                    row.individualBs = rd(row.precioUnitarioBs * (1 + pctInd));
+                } else {
+                    row.individualBs = 0;
+                }
+                
+                return row;
+            }, [tasa, globalComicion]);
+
             useEffect(() => {
-                const savedTasa = localStorage.getItem('app_tasa_v7');
-                const savedGlobalCom = localStorage.getItem('app_global_com_v7');
-                const savedRounding = localStorage.getItem('app_rounding');
+                const savedTasa = sessionStorage.getItem('app_tasa_v7');
+                const savedGlobalCom = sessionStorage.getItem('app_global_com_v7');
+                const savedRounding = sessionStorage.getItem('app_rounding');
                 if (savedTasa) setTasa(parseFloat(savedTasa));
                 if (savedGlobalCom) setGlobalComicion(parseFloat(savedGlobalCom));
                 if (savedRounding) setRoundTo10(savedRounding === 'true');
@@ -233,38 +205,16 @@
                 return () => clearInterval(interval);
             }, []);
 
-            const rd = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
-
-            const calculateItem = (item, gTasa = tasa, gCom = globalComicion, changedField = null) => {
-                const row = { ...item };
-                if (changedField === 'valorTotalBs' || changedField === 'tasaCompra' || changedField === null) {
-                    const vTotal = parseFloat(row.valorTotalBs) || 0;
-                    const tComp = parseFloat(row.tasaCompra) || 1;
-                    row.costoTotalUsd = tComp > 0 ? rd(vTotal / tComp) : 0;
-                }
-                const comFact = parseFloat(row.comicionFactor) || 1;
-                row.venta = comFact > 0 ? rd(row.costoTotalUsd / comFact) : 0;
-                row.comicionCalc = rd(row.venta * gCom);
-                row.ganacia = rd(row.venta - (row.costoTotalUsd + row.comicionCalc));
-                const units = parseFloat(row.unida) || 1;
-                row.unitarioUsd = units > 0 ? rd(row.venta / units) : 0;
-                row.precioUnitarioBs = rd(row.unitarioUsd * gTasa);
-                
-                if (row.tipo && row.tipo.toUpperCase() === 'CIGARROS') {
-                    const pctInd = parseFloat(row.pctIndividual) || 0;
-                    row.individualBs = rd((row.precioUnitarioBs / 20) / (1 - pctInd));
-                } else if (parseFloat(row.pctIndividual) > 0) {
-                    // Lógica para otros productos con porcentaje individual si fuera necesario.
-                }
-
-                return row;
-            };
-
             useEffect(() => {
-                if (data.length > 0) {
-                    setData(prev => prev.map(item => calculateItem(item)));
-                }
-            }, [tasa, globalComicion]);
+                if (data.length > 0) setData(prev => prev.map(item => calculateItem(item)));
+            }, [tasa, globalComicion, calculateItem]);
+
+            const handleUpdateItem = (id, field, value, type) => {
+                const rawValue = value === '' ? '' : (type === 'number' ? parseFloat(value) : value);
+                setData(prev => prev.map(item => 
+                    item.id === id ? calculateItem({ ...item, [field]: rawValue }, tasa, globalComicion, field) : item
+                ));
+            };
 
             const handleFileUpload = (e) => {
                 const file = e.target.files[0];
@@ -277,49 +227,34 @@
                         const ws = wb.Sheets[wb.SheetNames[0]];
                         const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
                         
-                        // Fila 1 (Índice 0): C1 (Índice 2) es TASA, E1 (Índice 4) es COMICIÓN
                         if (raw[0]) {
-                            const newTasa = parseFloat(String(raw[0][2]).replace(',', '.')) || tasa;
-                            const newGlobalCom = parseFloat(String(raw[0][4]).replace(',', '.')) || globalComicion;
-                            
+                            const newTasa = rd(String(raw[0][2]).replace(',', '.')) || tasa;
+                            const newGlobalCom = rd(String(raw[0][4]).replace(',', '.')) || globalComicion;
                             setTasa(newTasa);
-                            localStorage.setItem('app_tasa_v7', newTasa);
-                            
+                            sessionStorage.setItem('app_tasa_v7', newTasa);
                             setGlobalComicion(newGlobalCom);
-                            localStorage.setItem('app_global_com_v7', newGlobalCom);
+                            sessionStorage.setItem('app_global_com_v7', newGlobalCom);
                         }
 
                         let headerIdx = raw.findIndex(r => r.some(c => String(c || '').toLowerCase().includes('artículo')));
                         if (headerIdx === -1) headerIdx = 1;
-
                         const headers = raw[headerIdx].map(h => String(h || '').trim());
                         const rows = raw.slice(headerIdx + 1);
                         const find = (n) => headers.findIndex(h => h.toLowerCase().trim() === n.toLowerCase().trim());
-                        
                         const mapping = {
-                            tipo: find('tipo'), 
-                            comicionFactor: find('Comicion'),
-                            comercio: find('Comercio'),
+                            tipo: find('tipo'), comicionFactor: find('Comicion'), comercio: find('Comercio'),
                             articulo: find('Artículo') !== -1 ? find('Artículo') : find('Articulo'),
-                            unida: find('Unida'),
-                            valorTotalBs: find('Valor Total'),
-                            tasaCompra: find('Tasa compra'),
-                            costoTotalUsd: find('costoTotal $'),
-                            pctIndividual: find('% INDIVIDUAL'),
-                            individualBs: find('INDIVIDUAL')
+                            unida: find('Unida'), valorTotalBs: find('Valor Total'), tasaCompra: find('Tasa compra'),
+                            costoTotalUsd: find('costoTotal $'), pctIndividual: find('% INDIVIDUAL'), individualBs: find('INDIVIDUAL')
                         };
-                        
                         const formatted = rows.filter(r => r[mapping.articulo]).map((r, i) => {
                             let obj = { id: Date.now() + i };
                             Object.keys(mapping).forEach(k => {
                                 let val = r[mapping[k]];
                                 if (['comicionFactor', 'unida', 'valorTotalBs', 'tasaCompra', 'costoTotalUsd', 'pctIndividual', 'individualBs'].includes(k)) {
-                                    obj[k] = parseFloat(String(val).replace(',', '.')) || (k === 'pctIndividual' ? '' : 0);
-                                } else {
-                                    obj[k] = val || '';
-                                }
+                                    obj[k] = rd(String(val || 0).replace(',', '.'));
+                                } else obj[k] = val || '';
                             });
-                            // Aquí usamos el nuevo valor de tasa y comisión que ya seteamos arriba
                             return calculateItem(obj);
                         });
                         setData(formatted);
@@ -328,10 +263,36 @@
                 reader.readAsBinaryString(file);
             };
 
+            const exportToExcel = () => {
+                if (data.length === 0) return;
+                const exportData = data.map(item => ({
+                    "ID": String(item.id).slice(-6),
+                    "tipo": item.tipo,
+                    "Comicion": rd(item.comicionFactor),
+                    "Comercio": item.comercio,
+                    "Artículo": item.articulo,
+                    "Unida": rd(item.unida),
+                    "Valor Total": rd(item.valorTotalBs),
+                    "Tasa compra": rd(item.tasaCompra),
+                    "costoTotal $": rd(item.costoTotalUsd),
+                    "Comicion MONTO": rd(item.comicionCalc),
+                    "Ganacia": rd(item.ganacia),
+                    "Venta": rd(item.venta),
+                    "unitario$": rd(item.unitarioUsd),
+                    "precio unitario BS": rd(item.precioUnitarioBs),
+                    "% INDIVIDUAL": rd(item.pctIndividual),
+                    "INDIVIDUAL": rd(item.individualBs)
+                }));
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+                XLSX.writeFile(wb, `Inventario_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
+            };
+
             const addNewItem = () => {
-                const newItem = calculateItem({
-                    id: Date.now(), tipo: 'COMIDA', comicionFactor: 0.65, comercio: '-', 
-                    articulo: 'Nuevo Artículo', unida: 1, valorTotalBs: 0, tasaCompra: tasa, costoTotalUsd: 0, pctIndividual: '', individualBs: 0
+                const newItem = calculateItem({ 
+                    id: Date.now(), tipo: 'COMIDA', comicionFactor: 0.65, comercio: '-', articulo: 'Nuevo Artículo', 
+                    unida: 1, valorTotalBs: 0, tasaCompra: tasa, costoTotalUsd: 0, pctIndividual: 0, individualBs: 0 
                 });
                 setData([...data, newItem]);
                 setView('details');
@@ -342,35 +303,12 @@
                 setCart(prev => {
                     const cartId = isIndividual ? `${product.id}_IND` : `${product.id}_UNIT`;
                     const exists = prev.find(i => i.cartId === cartId);
-                    
-                    const priceBs = isIndividual ? product.individualBs : product.precioUnitarioBs;
-                    const priceUsd = isIndividual ? (product.individualBs / tasa) : product.unitarioUsd;
-                    const label = isIndividual ? `${product.articulo} (INDIVIDUAL)` : product.articulo;
-
-                    let itemProfitBs = 0;
-                    if (isIndividual) {
-                        const isCigar = String(product.tipo || '').toUpperCase() === 'CIGARROS';
-                        const divisor = isCigar ? 20 : 1;
-                        const costIndivUsd = (product.costoTotalUsd / (product.unida || 1)) / divisor;
-                        const commissionIndivUsd = (priceBs / tasa) * globalComicion;
-                        itemProfitBs = (priceBs - (costIndivUsd * tasa) - (commissionIndivUsd * tasa));
-                    } else {
-                        itemProfitBs = (product.ganacia / (product.unida || 1)) * tasa;
-                    }
-
-                    if (exists) {
-                        return prev.map(i => i.cartId === cartId ? { ...i, qty: i.qty + 1 } : i);
-                    }
-                    return [...prev, { 
-                        ...product, 
-                        cartId, 
-                        isIndividual, 
-                        qty: 1, 
-                        cartPriceBs: priceBs, 
-                        cartPriceUsd: priceUsd,
-                        cartLabel: label,
-                        itemProfitBs
-                    }];
+                    const priceBs = rd(isIndividual ? product.individualBs : product.precioUnitarioBs);
+                    const priceUsd = rd(isIndividual ? (product.individualBs / tasa) : product.unitarioUsd);
+                    const label = isIndividual ? `${product.articulo} (IND)` : product.articulo;
+                    let itemProfitBs = rd(isIndividual ? (priceBs - ((rd(product.costoTotalUsd) / (rd(product.unida) || 1)) / (String(product.tipo).toUpperCase() === 'CIGARROS' ? 20 : 1) * tasa) - ((priceBs / tasa) * globalComicion * tasa)) : (rd(product.ganacia) / (rd(product.unida) || 1)) * tasa);
+                    if (exists) return prev.map(i => i.cartId === cartId ? { ...i, qty: i.qty + 1 } : i);
+                    return [...prev, { ...product, cartId, isIndividual, qty: 1, cartPriceBs: priceBs, cartPriceUsd: priceUsd, cartLabel: label, itemProfitBs }];
                 });
             };
 
@@ -379,193 +317,124 @@
             };
 
             const updateCartQty = (cartId, delta) => {
-                setCart(prev => prev.map(i => {
-                    if (i.cartId === cartId) {
-                        const newQty = Math.max(1, i.qty + delta);
-                        return { ...i, qty: newQty };
-                    }
-                    return i;
-                }));
+                setCart(prev => prev.map(i => 
+                    i.cartId === cartId ? { ...i, qty: Math.max(1, i.qty + delta) } : i
+                ));
             };
 
-            const toggleRounding = () => {
-                const newState = !roundTo10;
-                setRoundTo10(newState);
-                localStorage.setItem('app_rounding', String(newState));
+            const clearCart = () => {
+                if(confirm("¿Estás seguro de que deseas vaciar el carrito?")) {
+                    setCart([]);
+                }
             };
 
-            const applyRounding = (val) => {
-                if (!roundTo10) return val;
-                return Math.round(val / 10) * 10;
-            };
+            const fmt = (v, c = '$') => fmtPrice(v, c, roundTo10);
 
-            const fmt = (v, c = '$') => {
-                let val = parseFloat(v) || 0;
-                if (c === 'VES') val = applyRounding(val);
-                return new Intl.NumberFormat('es-VE', { minimumFractionDigits: roundTo10 && c === 'VES' ? 0 : 2, maximumFractionDigits: roundTo10 && c === 'VES' ? 0 : 2 }).format(val) + (c === '$' ? ' $' : ' Bs.');
-            };
-
-            const uniqueTipos = useMemo(() => {
-                const ts = new Set(data.map(d => String(d.tipo || '').toUpperCase().trim()));
-                return ['TODOS', ...Array.from(ts).filter(Boolean).sort()];
-            }, [data]);
-
-            const filteredData = useMemo(() => {
-                return data.filter(i => {
-                    const matchText = String(i.articulo).toLowerCase().includes(filter.toLowerCase()) || String(i.tipo).toLowerCase().includes(filter.toLowerCase());
-                    const matchTipo = filterTipo === 'TODOS' || String(i.tipo || '').toUpperCase().trim() === filterTipo;
-                    return matchText && matchTipo;
-                });
-            }, [data, filter, filterTipo]);
-
+            const uniqueTipos = useMemo(() => ['TODOS', ...Array.from(new Set(data.map(d => String(d.tipo || '').toUpperCase().trim()))).filter(Boolean).sort()], [data]);
+            const filteredData = useMemo(() => data.filter(i => (String(i.articulo).toLowerCase().includes(filter.toLowerCase()) || String(i.tipo).toLowerCase().includes(filter.toLowerCase())) && (filterTipo === 'TODOS' || String(i.tipo || '').toUpperCase().trim() === filterTipo)), [data, filter, filterTipo]);
+            
             const cartTotals = useMemo(() => {
-                let totalUsd = 0;
-                let totalBs = 0;
-                let totalProfitBs = 0;
-                cart.forEach(item => {
-                    totalUsd += item.cartPriceUsd * item.qty;
-                    totalBs += item.cartPriceBs * item.qty;
-                    totalProfitBs += item.itemProfitBs * item.qty;
+                let totalUsd = 0, totalBs = 0, totalProfitBs = 0;
+                cart.forEach(item => { 
+                    totalUsd += rd(rd(item.cartPriceUsd) * item.qty); 
+                    totalBs += rd(rd(item.cartPriceBs) * item.qty); 
+                    totalProfitBs += rd(rd(item.itemProfitBs) * item.qty); 
                 });
-                return { totalUsd, totalBs, totalProfitBs };
+                return { totalUsd: rd(totalUsd), totalBs: rd(totalBs), totalProfitBs: rd(totalProfitBs) };
             }, [cart]);
 
-            const Field = ({ id, field, value, type = "text", bold = false, color = "text-slate-800" }) => {
-                if (!isEditing) return <span className={`read-only-text ${bold ? 'font-bold' : ''} ${color}`}>{type === 'number' && field !== 'pctIndividual' ? fmt(value, field.includes('Usd') ? '$' : 'VES') : value}</span>;
-                return <input type={type} step="0.01" className={`editable-input ${bold ? 'font-bold' : ''} ${color}`} value={value} onChange={e => updateField(id, field, type === 'number' ? (e.target.value === '' ? '' : parseFloat(e.target.value)) : e.target.value)} />;
-            };
-
-            const updateField = (id, field, value) => {
-                setData(prev => prev.map(item => item.id === id ? calculateItem({ ...item, [field]: value }, tasa, globalComicion, field) : item));
-            };
-
             return (
-                <div className="min-h-screen flex flex-col">
+                <div className="min-h-screen flex flex-col bg-slate-50 overflow-x-hidden">
                     <div className="bcv-header-container">
-                        <div className="bcv-tab animate-fade" onClick={fetchRates} title="Tasa oficial BCV">
+                        <div className="bcv-tab animate-fade" onClick={fetchRates}>
                             <div className="bcv-item">
-                                <span className="bcv-label">
-                                    <span className="bcv-status-dot animate-status"></span>
-                                    DÓLAR OFICIAL BCV
-                                </span>
-                                <span className="bcv-value">
-                                    {loadingRates ? '...' : (bcvRates.usd ? bcvRates.usd.toFixed(2) : '--.--')}
-                                    <span className="bcv-symbol">Bs.</span>
-                                </span>
+                                <span className="bcv-label"><span className="bcv-status-dot animate-status"></span>BCV</span>
+                                <span className="bcv-value">{loadingRates ? '...' : (bcvRates.usd ? bcvRates.usd.toFixed(2) : '--.--')}<span className="bcv-symbol">Bs.</span></span>
                             </div>
                         </div>
                     </div>
 
-                    <header className="glass sticky top-0 z-50 px-4 py-4 md:px-6 pt-20 md:pt-24">
-                        <div className="max-w-[1800px] mx-auto flex flex-col gap-4 lg:flex-row items-center justify-between">
-                            <div className="flex items-center gap-3 w-full lg:w-auto">
-                                <div className="bg-indigo-600 p-3 rounded-2xl shadow-xl shadow-indigo-100 border border-indigo-400/30">
-                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <header className="glass sticky top-0 z-50 px-2 py-2 md:px-4 pt-10 md:pt-10">
+                        <div className="max-w-[1600px] mx-auto flex flex-col gap-2 lg:flex-row items-center justify-between">
+                            <div className="flex items-center gap-1.5 w-full lg:w-auto">
+                                <div className="bg-indigo-600 p-1.5 rounded-lg shadow-md">
+                                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                 </div>
-                                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Inventario <span className="text-indigo-600">Pro</span></h1>
+                                <h1 className="text-sm font-black text-slate-900">Inv<span className="text-indigo-600">Pro</span></h1>
                             </div>
 
-                            <div className="flex-1 max-w-xl w-full flex flex-col sm:flex-row gap-2">
-                                <div className="relative flex-1">
-                                    <input type="text" placeholder="Buscar artículo..." className="w-full pl-12 pr-4 py-3.5 bg-slate-100 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 text-sm outline-none transition-all placeholder:text-slate-400 font-medium" value={filter} onChange={(e) => setFilter(e.target.value)} />
-                                    <svg className="w-5 h-5 absolute left-4 top-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeWidth="2.5"></path></svg>
-                                </div>
-                                <select value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)} className="bg-slate-100 border-none rounded-2xl text-xs font-black px-6 py-3.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer uppercase tracking-wider text-slate-600">
+                            <div className="flex-1 max-w-sm w-full flex gap-1.5">
+                                <input type="text" placeholder="Buscar..." className="flex-1 pl-3 pr-2 py-1.5 bg-slate-100 border-none rounded-lg text-[10px] outline-none" value={filter} onChange={(e) => setFilter(e.target.value)} />
+                                <select value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)} className="bg-slate-100 border-none rounded-lg text-[9px] font-bold px-2 py-1.5 outline-none uppercase text-slate-600">
                                     {uniqueTipos.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
                             </div>
 
-                            <div className="flex items-center gap-3 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
-                                <button onClick={toggleRounding} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black transition-all shrink-0 ${roundTo10 ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-400 shadow-md scale-105' : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'}`}>
-                                    <svg className={`w-4 h-4 ${roundTo10 ? 'text-amber-600' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                    REDONDEO
-                                </button>
-                                <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shrink-0">
-                                    <button onClick={() => setView('summary')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${view === 'summary' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>RESUMEN</button>
-                                    <button onClick={() => setView('details')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${view === 'details' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>DETALLES</button>
-                                    <button onClick={() => setView('cart')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all relative ${view === 'cart' ? 'bg-white shadow-sm text-red-600' : 'text-slate-500 hover:text-slate-700'}`}>
-                                        CARRITO
-                                        {cart.length > 0 && <span className="cart-badge">{cart.reduce((a,b)=>a+b.qty, 0)}</span>}
-                                    </button>
+                            <div className="flex items-center gap-1.5">
+                                <button onClick={() => { const ns = !roundTo10; setRoundTo10(ns); sessionStorage.setItem('app_rounding', String(ns)); }} className={`px-2 py-1.5 rounded-lg text-[9px] font-black transition-all ${roundTo10 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-400' : 'bg-slate-100 text-slate-500'}`}>REDONDEO</button>
+                                <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                                    <button onClick={() => setView('summary')} className={`px-3 py-1 rounded-md text-[9px] font-black ${view === 'summary' ? 'bg-white text-indigo-600' : 'text-slate-500'}`}>CATÁLOGO</button>
+                                    <button onClick={() => setView('details')} className={`px-3 py-1 rounded-md text-[9px] font-black ${view === 'details' ? 'bg-white text-indigo-600' : 'text-slate-500'}`}>ADMIN</button>
+                                    <button onClick={() => setView('cart')} className={`px-3 py-1 rounded-md text-[9px] font-black relative ${view === 'cart' ? 'bg-white text-red-600' : 'text-slate-500'}`}>CARRITO{cart.length > 0 && <span className="cart-badge">{cart.reduce((a,b)=>a+b.qty, 0)}</span>}</button>
                                 </div>
-                                <div className="bg-white border-2 border-slate-100 px-5 py-2 rounded-2xl flex flex-col items-center shrink-0 shadow-sm">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-0.5">Tasa Cálculo</span>
-                                    <input type="number" className="w-20 bg-transparent text-center font-black text-indigo-600 text-base outline-none" value={tasa} onChange={(e) => { setTasa(parseFloat(e.target.value) || 0); localStorage.setItem('app_tasa_v7', e.target.value); }} />
+                                <div className="bg-white px-2 py-1 rounded-lg border border-slate-200 flex flex-col items-center">
+                                    <span className="text-[7px] font-bold text-slate-400 uppercase leading-none">Tasa</span>
+                                    <input type="number" className="w-10 bg-transparent text-center font-bold text-indigo-600 text-[10px] outline-none" value={tasa} onChange={(e) => { const nt = parseFloat(e.target.value) || 0; setTasa(nt); sessionStorage.setItem('app_tasa_v7', nt); }} />
                                 </div>
                             </div>
                         </div>
                     </header>
 
-                    <main className="max-w-[1800px] mx-auto w-full px-4 py-8 md:px-6 md:py-12 flex-grow">
+                    <main className="max-w-[1600px] mx-auto w-full px-2 py-4 flex-grow">
                         {data.length === 0 ? (
-                            <div className="h-[60vh] flex flex-col items-center justify-center bg-white border-2 border-slate-100 border-dashed rounded-[3rem] animate-fade p-10 text-center shadow-xl">
-                                <div className="bg-indigo-50 p-10 rounded-full mb-10 border-[8px] border-white shadow-2xl relative">
-                                    <svg className="w-16 h-16 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                    <div className="absolute -top-3 -right-3 bg-amber-400 w-10 h-10 rounded-full border-4 border-white animate-bounce flex items-center justify-center text-white font-black text-xs">!</div>
-                                </div>
-                                <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">Gestión Profesional de Inventario</h2>
-                                <p className="text-slate-500 mb-14 text-base max-w-lg leading-relaxed font-medium">Carga tu hoja de cálculo para sincronizar precios automáticamente con la tasa oficial del Banco Central de Venezuela.</p>
-                                <label className="group bg-indigo-600 text-white px-14 py-6 rounded-[2.5rem] font-black cursor-pointer text-sm shadow-2xl shadow-indigo-200 mb-8 hover:bg-indigo-700 hover:-translate-y-2 transition-all duration-300 active:scale-95 flex items-center gap-4">
-                                    <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" strokeWidth="2.5"></path></svg>
-                                    IMPORTAR INVENTARIO EXCEL
+                            <div className="h-[40vh] flex flex-col items-center justify-center bg-white border border-slate-100 border-dashed rounded-2xl p-4">
+                                <label className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-black cursor-pointer text-[10px] shadow-lg shadow-indigo-100 mb-2">
+                                    IMPORTAR EXCEL
                                     <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileUpload} />
                                 </label>
-                                <button onClick={addNewItem} className="text-indigo-600 font-black text-sm hover:tracking-widest transition-all uppercase opacity-70 hover:opacity-100">Crear producto manualmente</button>
+                                <button onClick={addNewItem} className="text-indigo-400 font-bold text-[9px] uppercase">Crear manualmente</button>
                             </div>
                         ) : (
                             <div className="animate-fade">
-                                <div className="flex flex-wrap justify-between items-center mb-12 gap-6">
-                                    <div className="flex items-center gap-6">
-                                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-                                            {view === 'summary' ? 'Catálogo de Precios' : view === 'details' ? 'Administrador Maestro' : 'Carrito de Compras'}
-                                        </h2>
-                                        <div className="bg-indigo-100 text-indigo-600 text-[12px] px-5 py-2 rounded-full font-black uppercase shadow-inner border border-indigo-200/50">
-                                            {view === 'cart' ? `${cart.length} ÍTEMS SELECCIONADOS` : `${filteredData.length} PRODUCTOS REGISTRADOS`}
-                                        </div>
+                                <div className="flex justify-between items-center mb-4 gap-2">
+                                    <h2 className="text-xs font-black text-slate-900 uppercase tracking-tighter">Vista: {view}</h2>
+                                    <div className="flex gap-1.5">
+                                        <button onClick={exportToExcel} className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-3 py-1.5 rounded-lg text-[9px] font-black flex items-center gap-1 hover:bg-emerald-100">
+                                            EXPORTAR
+                                        </button>
+                                        {view === 'details' && (
+                                            <button onClick={() => setIsEditing(!isEditing)} className={`${isEditing ? 'bg-emerald-500' : 'bg-indigo-600'} text-white px-3 py-1.5 rounded-lg text-[9px] font-black`}>
+                                                {isEditing ? 'FINALIZAR' : 'EDITAR'}
+                                            </button>
+                                        )}
+                                        <button onClick={addNewItem} className="bg-white border border-slate-200 text-slate-800 px-3 py-1.5 rounded-lg text-[9px] font-black">+ NUEVO</button>
                                     </div>
-                                    {view !== 'cart' && (
-                                        <div className="flex gap-4">
-                                            {view === 'details' && (
-                                                <button onClick={() => setIsEditing(!isEditing)} className={`${isEditing ? 'bg-emerald-500 hover:bg-emerald-600 ring-8 ring-emerald-50' : 'bg-indigo-600 hover:bg-indigo-700 ring-8 ring-indigo-50'} text-white px-10 py-4 rounded-2xl text-xs font-black transition-all shadow-xl active:scale-95 tracking-widest`}>
-                                                    {isEditing ? '✓ FINALIZAR EDICIÓN' : '✎ EDITAR INVENTARIO'}
-                                                </button>
-                                            )}
-                                            <button onClick={addNewItem} className="bg-white border-2 border-slate-100 text-slate-800 hover:bg-slate-50 px-10 py-4 rounded-2xl text-xs font-black transition-all shadow-sm tracking-widest">+ NUEVO ÍTEM</button>
-                                        </div>
-                                    )}
                                 </div>
 
                                 {view === 'summary' && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-10 pb-40">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-10">
                                         {filteredData.map(item => (
-                                            <div key={item.id} className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-3 transition-all duration-500 group relative overflow-hidden">
-                                                <div className="absolute -top-12 -right-12 w-40 h-40 bg-indigo-50/50 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-                                                <div className="mb-5 relative flex justify-between items-center">
-                                                    <span className="bg-indigo-600 text-white text-[10px] px-4 py-2 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-100">{item.tipo || 'CATEGORÍA'}</span>
-                                                    <div className="flex gap-2">
-                                                        {(item.individualBs > 0 || String(item.tipo || '').toUpperCase() === 'CIGARROS') && (
-                                                            <button onClick={() => addToCart(item, true)} className="bg-amber-100 text-amber-600 p-2.5 rounded-2xl hover:bg-amber-600 hover:text-white transition-all shadow-sm flex flex-col items-center justify-center leading-none" title="Añadir Individual">
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth="2.5"></path></svg>
-                                                                <span className="text-[6px] font-black mt-0.5">IND</span>
-                                                            </button>
+                                            <div key={item.id} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-[7px] font-black text-indigo-400 uppercase truncate max-w-[60px]">{item.tipo}</span>
+                                                    <div className="flex gap-1">
+                                                        {(rd(item.individualBs) > 0 || String(item.tipo).toUpperCase() === 'CIGARROS') && (
+                                                            <button onClick={() => addToCart(item, true)} className="bg-amber-50 text-amber-600 px-1 py-0.5 rounded text-[7px] font-black">IND</button>
                                                         )}
-                                                        <button onClick={() => addToCart(item)} className="bg-emerald-50 text-emerald-600 p-2.5 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex flex-col items-center justify-center leading-none" title="Añadir Paquete/Unidad">
-                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth="2.5"></path></svg>
-                                                            {(item.individualBs > 0 || String(item.tipo || '').toUpperCase() === 'CIGARROS') && <span className="text-[6px] font-black mt-0.5">PACK</span>}
-                                                        </button>
+                                                        <button onClick={() => addToCart(item)} className="bg-emerald-50 text-emerald-600 px-1 py-0.5 rounded text-[7px] font-black">PACK</button>
                                                     </div>
                                                 </div>
-                                                <h3 className="font-extrabold text-slate-900 text-lg mb-10 h-14 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors relative">{item.articulo}</h3>
-                                                <div className="space-y-5 pt-8 border-t-2 border-slate-50 relative">
-                                                    <div className="flex justify-between items-center"><span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.2em]">UNITARIO $</span><span className="font-black text-slate-900 text-xl">{fmt(item.unitarioUsd, '$')}</span></div>
-                                                    <div className="bg-indigo-600 p-5 rounded-[2rem] border border-indigo-500 shadow-xl shadow-indigo-100 flex justify-between items-center group-hover:bg-indigo-700 transition-all duration-300">
-                                                        <span className="text-[11px] font-black text-indigo-200 uppercase tracking-widest">FINAL Bs</span>
-                                                        <span className="font-black text-white text-2xl tracking-tighter">{fmt(item.precioUnitarioBs, 'VES')}</span>
+                                                <h3 className="font-bold text-slate-800 text-[9px] mb-2 h-6 line-clamp-2 leading-tight">{item.articulo}</h3>
+                                                <div className="space-y-1.5 pt-1.5 border-t border-slate-50">
+                                                    <div className="flex justify-between items-center text-[8px] font-bold text-slate-400"><span>Unit. $</span><span className="text-slate-700">{fmt(item.unitarioUsd, '$')}</span></div>
+                                                    <div className="bg-indigo-600 px-2 py-1.5 rounded-lg flex justify-between items-center text-white">
+                                                        <span className="text-[7px] font-black opacity-80">Bs</span>
+                                                        <span className="font-bold text-[10px]">{fmt(item.precioUnitarioBs, 'VES')}</span>
                                                     </div>
-                                                    {(item.individualBs > 0 || String(item.tipo || '').toUpperCase() === 'CIGARROS') && (
-                                                        <div className="bg-amber-50 p-5 rounded-[2rem] border border-amber-100 animate-fade flex justify-between items-center">
-                                                            <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">INDIV. Bs</span>
-                                                            <span className="font-black text-amber-700 text-xl">{fmt(item.individualBs, 'VES')}</span>
+                                                    {(rd(item.individualBs) > 0 || String(item.tipo).toUpperCase() === 'CIGARROS') && (
+                                                        <div className="mt-1 flex justify-between items-center bg-amber-50 text-amber-600 px-2 py-1 rounded-lg border border-amber-100 font-bold text-[9px]">
+                                                            <span>Ind. Bs</span>
+                                                            <span>{fmt(item.individualBs, 'VES')}</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -575,76 +444,81 @@
                                 )}
 
                                 {view === 'cart' && (
-                                    <div className="flex flex-col lg:flex-row gap-10 pb-40">
-                                        <div className="flex-1 space-y-6">
+                                    <div className="flex flex-col lg:flex-row gap-4 pb-10 animate-fade">
+                                        <div className="flex-1 space-y-2">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <h3 className="text-[10px] font-black text-slate-400 uppercase">Productos Seleccionados</h3>
+                                                {cart.length > 0 && (
+                                                    <button onClick={clearCart} className="text-red-500 font-black text-[9px] hover:text-red-700 underline uppercase tracking-tighter">
+                                                        VACIAR CARRITO
+                                                    </button>
+                                                )}
+                                            </div>
+                                            
                                             {cart.length === 0 ? (
-                                                <div className="bg-white p-20 rounded-[3rem] text-center border-2 border-dashed border-slate-100">
-                                                    <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                                                        <svg className="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" strokeWidth="2"></path></svg>
-                                                    </div>
-                                                    <h3 className="text-xl font-black text-slate-400">El carrito está vacío</h3>
-                                                    <button onClick={() => setView('summary')} className="mt-6 text-indigo-600 font-black uppercase text-sm hover:underline">Ir a buscar productos</button>
+                                                <div className="text-center p-12 bg-white rounded-2xl border border-slate-100 text-slate-400 text-[10px] italic">
+                                                    Tu carrito está actualmente vacío.
                                                 </div>
                                             ) : (
                                                 cart.map(item => (
-                                                    <div key={item.cartId} className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-6 animate-fade">
-                                                        <div className="flex-1 text-center md:text-left">
-                                                            <div className="flex items-center gap-2 justify-center md:justify-start mb-1">
-                                                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{item.tipo}</span>
-                                                                {item.isIndividual && <span className="bg-amber-100 text-amber-600 text-[8px] px-2 py-0.5 rounded-full font-black uppercase">Individual</span>}
-                                                            </div>
-                                                            <h4 className="font-extrabold text-slate-800 text-lg leading-tight">{item.cartLabel}</h4>
-                                                            <div className="mt-3 flex flex-wrap gap-4 justify-center md:justify-start">
-                                                                <span className="text-sm font-bold text-slate-400">P. Unit: <span className="text-slate-800">{fmt(item.cartPriceUsd, '$')}</span></span>
-                                                                <span className="text-sm font-bold text-slate-400">Bs. Unit: <span className="text-indigo-600">{fmt(item.cartPriceBs, 'VES')}</span></span>
-                                                            </div>
+                                                    <div key={item.cartId} className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-bold text-slate-800 text-[10px] leading-tight truncate">{item.cartLabel}</h4>
+                                                            <div className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">{fmt(item.cartPriceUsd, '$')} / Unidad</div>
                                                         </div>
-                                                        <div className="flex items-center bg-slate-100 rounded-2xl p-1 shrink-0">
-                                                            <button onClick={() => updateCartQty(item.cartId, -1)} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-white hover:text-indigo-600 rounded-xl transition-all font-black text-xl">-</button>
-                                                            <span className="w-12 text-center font-black text-slate-800">{item.qty}</span>
-                                                            <button onClick={() => updateCartQty(item.cartId, 1)} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-white hover:text-indigo-600 rounded-xl transition-all font-black text-xl">+</button>
+                                                        <div className="flex items-center bg-slate-100 rounded-lg p-1">
+                                                            <button 
+                                                                onClick={() => updateCartQty(item.cartId, -1)} 
+                                                                className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md transition-colors"
+                                                            >
+                                                                -
+                                                            </button>
+                                                            <span className="w-8 text-center text-[10px] font-black text-slate-900">{item.qty}</span>
+                                                            <button 
+                                                                onClick={() => updateCartQty(item.cartId, 1)} 
+                                                                className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md transition-colors"
+                                                            >
+                                                                +
+                                                            </button>
                                                         </div>
-                                                        <div className="text-center md:text-right shrink-0 min-w-[150px]">
-                                                            <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Subtotal</div>
-                                                            <div className="text-xl font-black text-indigo-600">{fmt(item.cartPriceBs * item.qty, 'VES')}</div>
-                                                            <div className="text-xs font-bold text-slate-400">{fmt(item.cartPriceUsd * item.qty, '$')}</div>
+                                                        <div className="text-right shrink-0 min-w-[85px] font-black text-indigo-600 text-[10px]">
+                                                            {fmt(item.cartPriceBs * item.qty, 'VES')}
                                                         </div>
-                                                        <button onClick={() => removeFromCart(item.cartId)} className="text-red-200 hover:text-red-500 p-2 transition-colors">
-                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="2"></path></svg>
+                                                        <button 
+                                                            onClick={() => removeFromCart(item.cartId)} 
+                                                            className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                                                            title="Eliminar del carrito"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" strokeWidth="2.5"></path>
+                                                                <path d="M4 7h16M10 11v6M14 11v6M5 7l1-3h12l1 3" strokeWidth="2.5"></path>
+                                                            </svg>
                                                         </button>
                                                     </div>
                                                 ))
                                             )}
                                         </div>
-
                                         {cart.length > 0 && (
-                                            <div className="lg:w-[400px] shrink-0">
-                                                <div className="bg-indigo-600 p-10 rounded-[3rem] text-white shadow-2xl shadow-indigo-200 sticky top-48 overflow-hidden">
-                                                    <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-20 translate-x-20"></div>
-                                                    <h3 className="text-2xl font-black mb-8 relative">Resumen de Compra</h3>
-                                                    <div className="space-y-6 relative">
-                                                        <div className="flex justify-between items-center opacity-80">
-                                                            <span className="text-xs font-bold uppercase tracking-widest">Venta USD</span>
-                                                            <span className="font-black">{fmt(cartTotals.totalUsd, '$')}</span>
+                                            <div className="lg:w-72 shrink-0">
+                                                <div className="bg-indigo-600 p-5 rounded-2xl text-white shadow-xl sticky top-24">
+                                                    <h3 className="text-[10px] font-black mb-4 uppercase tracking-widest opacity-80">Detalle de Cobro</h3>
+                                                    <div className="space-y-3">
+                                                        <div className="flex justify-between items-center text-[9px] font-bold opacity-80">
+                                                            <span>TOTAL USD</span>
+                                                            <span>{fmt(cartTotals.totalUsd, '$')}</span>
                                                         </div>
-                                                        <div className="flex justify-between items-center bg-indigo-500/30 p-4 rounded-2xl border border-white/10">
-                                                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Ganancia Estimada</span>
-                                                            <div className="text-right">
-                                                                <span className="font-black text-emerald-300 text-lg">{fmt(cartTotals.totalProfitBs, 'VES')}</span>
-                                                                <div className="text-[9px] opacity-60 font-bold">{fmt(cartTotals.totalProfitBs / tasa, '$')}</div>
-                                                            </div>
+                                                        <div className="flex justify-between items-center bg-white/10 p-2.5 rounded-xl font-bold text-[9px] text-emerald-300 border border-white/5">
+                                                            <span>Ganancia Total</span>
+                                                            <span>{fmt(cartTotals.totalProfitBs, 'VES')}</span>
                                                         </div>
-                                                        <div className="h-px bg-white/20"></div>
+                                                        <div className="h-px bg-white/20 my-2"></div>
                                                         <div className="flex justify-between items-end">
-                                                            <span className="text-xs font-black uppercase tracking-[0.2em]">Total Cobrar Bs</span>
-                                                            <div className="text-right">
-                                                                <div className="text-4xl font-black tracking-tighter">{fmt(cartTotals.totalBs, 'VES')}</div>
-                                                                {roundTo10 && <span className="text-[10px] font-black uppercase text-indigo-200 tracking-widest animate-pulse">Redondeo ±10 Aplicado</span>}
-                                                            </div>
+                                                            <span className="text-[10px] font-black uppercase tracking-tighter">Total a Pagar</span>
+                                                            <div className="text-xl font-black leading-none">{fmt(cartTotals.totalBs, 'VES')}</div>
                                                         </div>
                                                     </div>
-                                                    <button onClick={() => alert("¡Compra procesada con éxito!")} className="w-full bg-white text-indigo-600 font-black py-5 rounded-[2rem] mt-10 hover:bg-slate-50 transition-all shadow-xl active:scale-95 uppercase tracking-widest text-sm">
-                                                        Confirmar Pedido
+                                                    <button className="w-full mt-6 bg-white text-indigo-600 py-3 rounded-xl font-black text-[10px] shadow-lg hover:bg-slate-50 transition-colors uppercase tracking-widest">
+                                                        Generar Recibo
                                                     </button>
                                                 </div>
                                             </div>
@@ -653,93 +527,97 @@
                                 )}
 
                                 {view === 'details' && (
-                                    isMobile ? (
-                                        <div className="space-y-6 pb-48">
-                                            {filteredData.map(item => (
-                                                <div key={item.id} className="mobile-card border-2 border-slate-50 shadow-xl overflow-hidden animate-fade">
-                                                    <div className="bg-slate-50 px-8 py-5 flex justify-between items-center border-b border-slate-200">
-                                                        <Field id={item.id} field="tipo" value={item.tipo} bold color="text-indigo-600 uppercase text-[12px] font-black tracking-[0.2em]" />
-                                                        <button onClick={() => setData(data.filter(i => i.id !== item.id))} className="bg-red-50 text-red-500 p-3 rounded-2xl hover:bg-red-500 hover:text-white transition-all"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="2.5"></path></svg></button>
-                                                    </div>
-                                                    <div className="p-8">
-                                                        <div className="mb-8">
-                                                            <label className="text-[11px] font-black text-slate-400 block mb-3 uppercase tracking-widest">ARTÍCULO</label>
-                                                            <Field id={item.id} field="articulo" value={item.articulo} bold />
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-6">
-                                                            <div><label className="text-[11px] font-black text-slate-400 block mb-2 uppercase tracking-tighter">COMICIÓN</label><Field id={item.id} field="comicionFactor" value={item.comicionFactor} type="number" color="text-indigo-600 font-bold" /></div>
-                                                            <div><label className="text-[11px] font-black text-slate-400 block mb-2 uppercase tracking-tighter">UNIDADES</label><Field id={item.id} field="unida" value={item.unida} type="number" color="text-indigo-600 font-bold" /></div>
-                                                            <div><label className="text-[11px] font-black text-slate-400 block mb-2 uppercase tracking-tighter">VALOR Bs</label><Field id={item.id} field="valorTotalBs" value={item.valorTotalBs} type="number" color="text-indigo-600 font-bold" /></div>
-                                                            <div><label className="text-[11px] font-black text-slate-400 block mb-2 uppercase tracking-tighter">COSTO $</label><Field id={item.id} field="costoTotalUsd" value={item.costoTotalUsd} type="number" color="text-emerald-600 font-bold" /></div>
-                                                        </div>
-                                                        {!isEditing && (
-                                                            <div className="mt-10 pt-8 border-t-2 border-slate-50 flex justify-between items-center">
-                                                                <div className="bg-indigo-600 px-8 py-3.5 rounded-[2rem] shadow-2xl shadow-indigo-100 text-white font-black text-lg">{fmt(item.precioUnitarioBs, 'VES')}</div>
-                                                                <span className="font-black text-slate-900 text-2xl">{fmt(item.unitarioUsd, '$')}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="bg-white rounded-[3.5rem] border-2 border-slate-50 shadow-2xl overflow-hidden overflow-x-auto custom-scrollbar">
-                                            <table className="w-full text-left border-collapse text-[13px]">
-                                                <thead>
-                                                    <tr className="bg-slate-50/50 border-b-2 border-slate-100">
-                                                        <th className="px-8 py-8 font-black text-indigo-600 sticky-comicion-col uppercase tracking-widest">COM.</th>
-                                                        <th className="px-8 py-8 font-black text-slate-900 sticky-articulo uppercase tracking-widest">ARTÍCULO</th>
-                                                        <th className="px-8 py-8 font-black text-slate-400 uppercase tracking-widest">TIPO</th>
-                                                        <th className="px-8 py-8 font-black text-indigo-600 uppercase tracking-widest text-center">UNID.</th>
-                                                        <th className="px-8 py-8 font-black text-indigo-600 uppercase tracking-widest">VALOR Bs.</th>
-                                                        <th className="px-8 py-8 font-black text-indigo-600 uppercase tracking-widest text-center">TASA C.</th>
-                                                        <th className="px-8 py-8 font-black text-emerald-600 uppercase bg-emerald-50/30 tracking-widest">COSTO $</th>
-                                                        <th className="px-8 py-8 font-black text-slate-900 uppercase tracking-widest">P. UNIT $</th>
-                                                        <th className="px-8 py-8 font-black text-indigo-700 bg-indigo-50/50 uppercase tracking-widest">P. UNIT Bs</th>
-                                                        <th className="px-8 py-8 font-black text-amber-600 uppercase bg-amber-50/50 tracking-widest">% IND.</th>
-                                                        <th className="px-8 py-8 font-black text-amber-700 uppercase bg-amber-50/50 tracking-widest">IND. Bs</th>
-                                                        <th className="px-8 py-8"></th>
+                                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden overflow-x-auto custom-scrollbar">
+                                        <table className="w-full text-left border-collapse text-[9px]">
+                                            <thead>
+                                                <tr className="bg-slate-50/50 border-b border-slate-100 uppercase text-slate-400 font-black">
+                                                    <th className="px-3 py-2">ID</th>
+                                                    <th className="px-3 py-2">Tipo</th>
+                                                    <th className="px-3 py-2">Comicion (F)</th>
+                                                    <th className="px-3 py-2">Comercio</th>
+                                                    <th className="px-3 py-2 sticky-articulo">Artículo</th>
+                                                    <th className="px-3 py-2 text-center">Unida</th>
+                                                    <th className="px-3 py-2">Valor Total</th>
+                                                    <th className="px-3 py-2">Tasa Compra</th>
+                                                    <th className="px-3 py-2 text-emerald-600 bg-emerald-50/20">costoTotal $</th>
+                                                    <th className="px-3 py-2 text-indigo-600 bg-indigo-50/20">Comicion (C)</th>
+                                                    <th className="px-3 py-2">Ganacia</th>
+                                                    <th className="px-3 py-2">Venta</th>
+                                                    <th className="px-3 py-2 text-indigo-700">unitario$</th>
+                                                    <th className="px-3 py-2 font-black bg-indigo-100 text-indigo-800">P. Unit BS</th>
+                                                    <th className="px-3 py-2">% IND</th>
+                                                    <th className="px-3 py-2">INDIVIDUAL</th>
+                                                    <th className="px-3 py-2"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {filteredData.map(item => (
+                                                    <tr key={item.id} className="hover:bg-slate-50/50 transition-all group">
+                                                        <td className="px-2 py-2 text-slate-400">{String(item.id).slice(-6)}</td>
+                                                        <td className="px-2 py-2 min-w-[80px]">
+                                                            <TableField id={item.id} field="tipo" value={item.tipo} editable isEditing={isEditing} onUpdate={handleUpdateItem} />
+                                                        </td>
+                                                        <td className="px-2 py-2 min-w-[60px]">
+                                                            <TableField id={item.id} field="comicionFactor" value={item.comicionFactor} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
+                                                        </td>
+                                                        <td className="px-2 py-2 min-w-[100px]">
+                                                            <TableField id={item.id} field="comercio" value={item.comercio} editable isEditing={isEditing} onUpdate={handleUpdateItem} />
+                                                        </td>
+                                                        <td className="px-2 py-2 sticky-articulo font-bold">
+                                                            <TableField id={item.id} field="articulo" value={item.articulo} editable isEditing={isEditing} onUpdate={handleUpdateItem} />
+                                                        </td>
+                                                        <td className="px-2 py-2 text-center">
+                                                            <TableField id={item.id} field="unida" value={item.unida} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
+                                                        </td>
+                                                        <td className="px-2 py-2">
+                                                            <TableField id={item.id} field="valorTotalBs" value={item.valorTotalBs} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
+                                                        </td>
+                                                        <td className="px-2 py-2">
+                                                            <TableField id={item.id} field="tasaCompra" value={item.tasaCompra} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
+                                                        </td>
+                                                        
+                                                        <td className="px-2 py-2 bg-emerald-50/10 font-bold text-emerald-600">
+                                                            <TableField id={item.id} field="costoTotalUsd" value={item.costoTotalUsd} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
+                                                        </td>
+                                                        <td className="px-2 py-2 bg-indigo-50/10 font-bold text-indigo-600">
+                                                            <TableField id={item.id} field="comicionCalc" value={item.comicionCalc} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
+                                                        </td>
+                                                        <td className="px-2 py-2">
+                                                            <TableField id={item.id} field="ganacia" value={item.ganacia} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
+                                                        </td>
+                                                        <td className="px-2 py-2">
+                                                            <TableField id={item.id} field="venta" value={item.venta} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
+                                                        </td>
+                                                        <td className="px-2 py-2 font-bold">
+                                                            <TableField id={item.id} field="unitarioUsd" value={item.unitarioUsd} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
+                                                        </td>
+                                                        <td className="px-2 py-2 bg-indigo-50/20 font-black text-indigo-700">
+                                                            <TableField id={item.id} field="precioUnitarioBs" value={item.precioUnitarioBs} isPrice isEditing={isEditing} fmt={fmt} />
+                                                        </td>
+                                                        
+                                                        <td className="px-2 py-2">
+                                                            <TableField id={item.id} field="pctIndividual" value={item.pctIndividual} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
+                                                        </td>
+                                                        <td className="px-2 py-2 font-bold">
+                                                            {rd(item.individualBs) > 0 ? fmt(item.individualBs, 'VES') : '-'}
+                                                        </td>
+                                                        <td className="px-2 py-2 text-right">
+                                                            <button onClick={() => { if(confirm("¿Eliminar este registro?")) setData(data.filter(i => i.id !== item.id)) }} className="text-red-300 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100">
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" strokeWidth="2.5"></path></svg>
+                                                            </button>
+                                                        </td>
                                                     </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-50">
-                                                    {filteredData.map(item => (
-                                                        <tr key={item.id} className="hover:bg-indigo-50/30 transition-all group">
-                                                            <td className="px-6 py-6 sticky-comicion-col"><Field id={item.id} field="comicionFactor" value={item.comicionFactor} type="number" color="text-indigo-600 font-bold" /></td>
-                                                            <td className="px-6 py-6 sticky-articulo"><Field id={item.id} field="articulo" value={item.articulo} bold /></td>
-                                                            <td className="px-6 py-6"><Field id={item.id} field="tipo" value={item.tipo} bold color="text-slate-400 uppercase font-black" /></td>
-                                                            <td className="px-6 py-6 text-center font-bold"><Field id={item.id} field="unida" value={item.unida} type="number" color="text-indigo-600 text-center" /></td>
-                                                            <td className="px-6 py-6 font-bold"><Field id={item.id} field="valorTotalBs" value={item.valorTotalBs} type="number" color="text-indigo-600" /></td>
-                                                            <td className="px-6 py-6 text-center font-bold"><Field id={item.id} field="tasaCompra" value={item.tasaCompra} type="number" color="text-indigo-600 text-center" /></td>
-                                                            <td className="px-6 py-6 bg-emerald-50/10 font-black text-emerald-600 text-lg">{rd(item.costoTotalUsd).toFixed(2)}</td>
-                                                            <td className="px-6 py-6 font-black text-slate-900 text-xl">{rd(item.unitarioUsd).toFixed(2)}</td>
-                                                            <td className="px-6 py-6 bg-indigo-50/20 font-black text-indigo-700 text-xl">{fmt(item.precioUnitarioBs, 'VES')}</td>
-                                                            <td className="px-6 py-6 bg-amber-50/10"><Field id={item.id} field="pctIndividual" value={item.pctIndividual} type="number" color="text-amber-700" /></td>
-                                                            <td className="px-6 py-6 bg-amber-50/10 font-black text-amber-700 text-lg">
-                                                                {item.individualBs > 0 || String(item.tipo || '').toUpperCase() === 'CIGARROS' ? fmt(item.individualBs, 'VES') : '-'}
-                                                            </td>
-                                                            <td className="px-8 py-6 text-right">
-                                                                <button onClick={() => setData(data.filter(i => i.id !== item.id))} className="text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 p-3 rounded-2xl hover:bg-red-50">
-                                                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeWidth="2.5"></path></svg>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 )}
                             </div>
                         )}
                     </main>
 
-                    <footer className="py-20 px-8 text-center border-t border-slate-100 bg-white mt-auto">
-                        <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row justify-between items-center gap-10 opacity-30 hover:opacity-100 transition-opacity duration-500">
-                            <p className="text-[12px] text-slate-400 font-black uppercase tracking-[0.5em]">© {new Date().getFullYear()} INVENTARIO PRO CLOUD • ECOSISTEMA DE GESTIÓN EMPRESARIAL</p>
-                            <div className="flex gap-14 items-center">
-                                <span className="text-[11px] font-black text-slate-400">DATOS OFICIALES BCV • CONEXIÓN EN TIEMPO REAL</span>
-                            </div>
-                        </div>
+                    <footer className="py-6 px-4 text-center border-t border-slate-100 opacity-40 mt-auto">
+                        <p className="text-[8px] font-bold uppercase tracking-[0.4em]">© {new Date().getFullYear()} INVENTARIO PRO • ECOSISTEMA EMPRESARIAL</p>
                     </footer>
                 </div>
             );
