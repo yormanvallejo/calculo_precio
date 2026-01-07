@@ -249,12 +249,19 @@
                 const units = parseFloat(row.unida) || 1;
                 row.unitarioUsd = units > 0 ? rd(row.venta / units) : 0;
                 row.precioUnitarioBs = rd(row.unitarioUsd * gTasa);
+                
+                // Si es cigarro, recalculamos individual si el usuario cambia los montos base.
+                // Si NO es cigarro, solo recalculamos si hay un porcentaje % Individual.
                 if (row.tipo && row.tipo.toUpperCase() === 'CIGARROS') {
                     const pctInd = parseFloat(row.pctIndividual) || 0;
                     row.individualBs = rd((row.precioUnitarioBs / 20) / (1 - pctInd));
-                } else {
-                    row.pctIndividual = '';
+                } else if (parseFloat(row.pctIndividual) > 0) {
+                    // Si tiene porcentaje individual, asumimos que el precio individual es el unitario con ese recargo (o similar lógica deseada)
+                    // Generalmente el usuario lo trae ya calculado en la columna P si no es cigarro.
+                    const pctInd = parseFloat(row.pctIndividual) || 0;
+                    // No sobreescribimos si no es cigarro a menos que sea necesario.
                 }
+
                 return row;
             };
 
@@ -332,6 +339,19 @@
                     const priceUsd = isIndividual ? (product.individualBs / tasa) : product.unitarioUsd;
                     const label = isIndividual ? `${product.articulo} (INDIVIDUAL)` : product.articulo;
 
+                    let itemProfitBs = 0;
+                    if (isIndividual) {
+                        // Ganancia individual simplificada:
+                        // Si es cigarro, usamos /20, si no, asumimos que el costo es Unitario/1 (o trust Excel)
+                        const isCigar = String(product.tipo || '').toUpperCase() === 'CIGARROS';
+                        const divisor = isCigar ? 20 : 1;
+                        const costIndivUsd = (product.costoTotalUsd / (product.unida || 1)) / divisor;
+                        const commissionIndivUsd = (priceBs / tasa) * globalComicion;
+                        itemProfitBs = (priceBs - (costIndivUsd * tasa) - (commissionIndivUsd * tasa));
+                    } else {
+                        itemProfitBs = (product.ganacia / (product.unida || 1)) * tasa;
+                    }
+
                     if (exists) {
                         return prev.map(i => i.cartId === cartId ? { ...i, qty: i.qty + 1 } : i);
                     }
@@ -342,7 +362,8 @@
                         qty: 1, 
                         cartPriceBs: priceBs, 
                         cartPriceUsd: priceUsd,
-                        cartLabel: label
+                        cartLabel: label,
+                        itemProfitBs
                     }];
                 });
             };
@@ -394,11 +415,13 @@
             const cartTotals = useMemo(() => {
                 let totalUsd = 0;
                 let totalBs = 0;
+                let totalProfitBs = 0;
                 cart.forEach(item => {
                     totalUsd += item.cartPriceUsd * item.qty;
                     totalBs += item.cartPriceBs * item.qty;
+                    totalProfitBs += item.itemProfitBs * item.qty;
                 });
-                return { totalUsd, totalBs };
+                return { totalUsd, totalBs, totalProfitBs };
             }, [cart]);
 
             const Field = ({ id, field, value, type = "text", bold = false, color = "text-slate-800" }) => {
@@ -514,15 +537,15 @@
                                                 <div className="mb-5 relative flex justify-between items-center">
                                                     <span className="bg-indigo-600 text-white text-[10px] px-4 py-2 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-100">{item.tipo || 'CATEGORÍA'}</span>
                                                     <div className="flex gap-2">
-                                                        {String(item.tipo || '').toUpperCase() === 'CIGARROS' && (
-                                                            <button onClick={() => addToCart(item, true)} className="bg-amber-100 text-amber-600 p-2.5 rounded-2xl hover:bg-amber-600 hover:text-white transition-all shadow-sm flex flex-col items-center justify-center leading-none" title="Añadir Cigarro Individual">
+                                                        {(item.individualBs > 0 || String(item.tipo || '').toUpperCase() === 'CIGARROS') && (
+                                                            <button onClick={() => addToCart(item, true)} className="bg-amber-100 text-amber-600 p-2.5 rounded-2xl hover:bg-amber-600 hover:text-white transition-all shadow-sm flex flex-col items-center justify-center leading-none" title="Añadir Individual">
                                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth="2.5"></path></svg>
                                                                 <span className="text-[6px] font-black mt-0.5">IND</span>
                                                             </button>
                                                         )}
                                                         <button onClick={() => addToCart(item)} className="bg-emerald-50 text-emerald-600 p-2.5 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex flex-col items-center justify-center leading-none" title="Añadir Paquete/Unidad">
                                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" strokeWidth="2.5"></path></svg>
-                                                            {String(item.tipo || '').toUpperCase() === 'CIGARROS' && <span className="text-[6px] font-black mt-0.5">PACK</span>}
+                                                            {(item.individualBs > 0 || String(item.tipo || '').toUpperCase() === 'CIGARROS') && <span className="text-[6px] font-black mt-0.5">PACK</span>}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -533,7 +556,7 @@
                                                         <span className="text-[11px] font-black text-indigo-200 uppercase tracking-widest">FINAL Bs</span>
                                                         <span className="font-black text-white text-2xl tracking-tighter">{fmt(item.precioUnitarioBs, 'VES')}</span>
                                                     </div>
-                                                    {String(item.tipo || '').toUpperCase() === 'CIGARROS' && (
+                                                    {(item.individualBs > 0 || String(item.tipo || '').toUpperCase() === 'CIGARROS') && (
                                                         <div className="bg-amber-50 p-5 rounded-[2rem] border border-amber-100 animate-fade flex justify-between items-center">
                                                             <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">INDIV. Bs</span>
                                                             <span className="font-black text-amber-700 text-xl">{fmt(item.individualBs, 'VES')}</span>
@@ -595,12 +618,19 @@
                                                     <h3 className="text-2xl font-black mb-8 relative">Resumen de Compra</h3>
                                                     <div className="space-y-6 relative">
                                                         <div className="flex justify-between items-center opacity-80">
-                                                            <span className="text-xs font-bold uppercase tracking-widest">Total USD</span>
+                                                            <span className="text-xs font-bold uppercase tracking-widest">Venta USD</span>
                                                             <span className="font-black">{fmt(cartTotals.totalUsd, '$')}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center bg-indigo-500/30 p-4 rounded-2xl border border-white/10">
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Ganancia Estimada</span>
+                                                            <div className="text-right">
+                                                                <span className="font-black text-emerald-300 text-lg">{fmt(cartTotals.totalProfitBs, 'VES')}</span>
+                                                                <div className="text-[9px] opacity-60 font-bold">{fmt(cartTotals.totalProfitBs / tasa, '$')}</div>
+                                                            </div>
                                                         </div>
                                                         <div className="h-px bg-white/20"></div>
                                                         <div className="flex justify-between items-end">
-                                                            <span className="text-xs font-black uppercase tracking-[0.2em]">Total Final Bs</span>
+                                                            <span className="text-xs font-black uppercase tracking-[0.2em]">Total Cobrar Bs</span>
                                                             <div className="text-right">
                                                                 <div className="text-4xl font-black tracking-tighter">{fmt(cartTotals.totalBs, 'VES')}</div>
                                                                 {roundTo10 && <span className="text-[10px] font-black uppercase text-indigo-200 tracking-widest animate-pulse">Redondeo ±10 Aplicado</span>}
@@ -679,7 +709,7 @@
                                                             <td className="px-6 py-6 bg-indigo-50/20 font-black text-indigo-700 text-xl">{fmt(item.precioUnitarioBs, 'VES')}</td>
                                                             <td className="px-6 py-6 bg-amber-50/10"><Field id={item.id} field="pctIndividual" value={item.pctIndividual} type="number" color="text-amber-700" /></td>
                                                             <td className="px-6 py-6 bg-amber-50/10 font-black text-amber-700 text-lg">
-                                                                {String(item.tipo || '').toUpperCase() === 'CIGARROS' ? fmt(item.individualBs, 'VES') : '-'}
+                                                                {item.individualBs > 0 || String(item.tipo || '').toUpperCase() === 'CIGARROS' ? fmt(item.individualBs, 'VES') : '-'}
                                                             </td>
                                                             <td className="px-8 py-6 text-right">
                                                                 <button onClick={() => setData(data.filter(i => i.id !== item.id))} className="text-slate-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 p-3 rounded-2xl hover:bg-red-50">
