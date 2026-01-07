@@ -1,11 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario Pro - Gestión de Precios</title>
-    <!-- Dependencias para ejecución local sin servidor -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -30,15 +28,7 @@
             tr:hover .sticky-articulo { background: #f8fafc; }
         }
 
-        .editable-input { 
-            width: 100%; 
-            background: #fff; 
-            border: 1px solid #e2e8f0; 
-            padding: 3px 6px; 
-            border-radius: 4px;
-            transition: all 0.2s;
-            font-size: 0.7rem;
-        }
+        .editable-input { width: 100%; background: #fff; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 4px; transition: all 0.2s; font-size: 0.7rem; }
         .editable-input:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1); }
         .read-only-text { padding: 3px 6px; font-size: 0.7rem; display: block; width: 100%; }
 
@@ -46,12 +36,34 @@
             display: flex;
             justify-content: center;
             width: 100%;
-            position: absolute;
+            position: fixed; 
             top: 0;
             left: 0;
             z-index: 2000;
             pointer-events: none;
         }
+
+        /* MODIFICACIÓN: CARRITO FIJO MÁS GRANDE Y VISIBLE */
+        .carrito-fijo-izq {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 2100;
+        }
+        
+        .boton-carrito-grande {
+            padding: 10px 24px;
+            font-size: 14px; /* Texto más grande */
+            font-weight: 900;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .boton-carrito-grande:active { transform: scale(0.95); }
 
         .bcv-tab {
             background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%);
@@ -70,7 +82,6 @@
             min-width: 140px;
             justify-content: center;
         }
-        
         .bcv-tab:hover { padding-bottom: 10px; }
         .bcv-item { display: flex; flex-direction: column; align-items: center; gap: 0; }
         .bcv-label { color: #93c5fd; text-transform: uppercase; font-size: 8px; font-weight: 800; letter-spacing: 0.1em; display: flex; align-items: center; gap: 4px; }
@@ -80,39 +91,31 @@
         @keyframes pulse-status { 0% { transform: scale(0.9); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.5; } }
         .animate-status { animation: pulse-status 2s infinite ease-in-out; }
 
-        .cart-badge {
-            position: absolute;
-            top: -3px;
-            right: -3px;
+        .cart-badge-grande {
             background: #ef4444;
             color: white;
-            font-size: 7px;
+            font-size: 11px;
             font-weight: 900;
-            width: 12px;
-            height: 12px;
+            min-width: 20px;
+            height: 20px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px solid white;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
     </style>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
-
     <script type="text/babel">
         const { useState, useMemo, useEffect, useCallback } = React;
-
-        // Función de redondeo estricta a 2 decimales
         const rd = (num) => {
             const val = parseFloat(num);
             if (isNaN(val)) return 0;
             return Math.round((val + Number.EPSILON) * 100) / 100;
         };
-
-        // Formateador de moneda compartido
         const fmtPrice = (v, c = '$', round10 = false) => {
             let val = rd(v);
             if (c === 'VES' && round10) val = Math.round(val / 10) * 10;
@@ -122,7 +125,6 @@
             }).format(val) + (c === '$' ? ' $' : ' Bs.');
         };
 
-        // Componente TableField fuera de App para evitar pérdida de foco
         const TableField = ({ id, field, value, type = "text", editable = false, isEditing, color = "text-slate-800", isPrice = false, fmt, isUsdField, onUpdate }) => {
             if (isEditing && editable) {
                 return (
@@ -149,7 +151,7 @@
             const [filterTipo, setFilterTipo] = useState('TODOS');
             const [view, setView] = useState('summary'); 
             const [isEditing, setIsEditing] = useState(false);
-            const [roundTo10, setRoundTo10] = useState(false); 
+            const [roundTo10, setRoundTo10] = useState(false);
 
             const fetchRates = async () => {
                 setLoadingRates(true);
@@ -162,33 +164,25 @@
                 } catch (err) { console.error(err); } finally { setLoadingRates(false); }
             };
 
-            const calculateItem = useCallback((item, gTasa = tasa, gCom = globalComicion, changedField = null) => {
+            const calculateItem = useCallback((item, gTasa = tasa, gCom = globalComicion) => {
                 const row = { ...item };
-                
                 const vTotal = rd(row.valorTotalBs);
                 const tComp = rd(row.tasaCompra) || 1;
                 row.costoTotalUsd = rd(vTotal / tComp);
-
                 const comFact = rd(row.comicionFactor) || 1;
                 row.venta = rd(row.costoTotalUsd / comFact);
                 row.comicionCalc = rd(row.venta * gCom);
                 row.ganacia = rd(row.venta - (row.costoTotalUsd + row.comicionCalc));
-                
                 const units = rd(row.unida) || 1;
                 row.unitarioUsd = rd(row.venta / units);
                 row.precioUnitarioBs = rd(row.unitarioUsd * gTasa);
-                
                 const isCigar = String(row.tipo || '').toUpperCase() === 'CIGARROS';
                 const pctInd = rd(row.pctIndividual);
-
                 if (isCigar) {
                     row.individualBs = rd((row.precioUnitarioBs / 20) / (1 - pctInd));
                 } else if (pctInd > 0) {
                     row.individualBs = rd(row.precioUnitarioBs * (1 + pctInd));
-                } else {
-                    row.individualBs = 0;
-                }
-                
+                } else { row.individualBs = 0; }
                 return row;
             }, [tasa, globalComicion]);
 
@@ -199,7 +193,6 @@
                 if (savedTasa) setTasa(parseFloat(savedTasa));
                 if (savedGlobalCom) setGlobalComicion(parseFloat(savedGlobalCom));
                 if (savedRounding) setRoundTo10(savedRounding === 'true');
-
                 fetchRates();
                 const interval = setInterval(fetchRates, 600000); 
                 return () => clearInterval(interval);
@@ -212,7 +205,7 @@
             const handleUpdateItem = (id, field, value, type) => {
                 const rawValue = value === '' ? '' : (type === 'number' ? parseFloat(value) : value);
                 setData(prev => prev.map(item => 
-                    item.id === id ? calculateItem({ ...item, [field]: rawValue }, tasa, globalComicion, field) : item
+                    item.id === id ? calculateItem({ ...item, [field]: rawValue }, tasa, globalComicion) : item
                 ));
             };
 
@@ -226,7 +219,6 @@
                         const wb = XLSX.read(bstr, { type: 'binary' });
                         const ws = wb.Sheets[wb.SheetNames[0]];
                         const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
-                        
                         if (raw[0]) {
                             const newTasa = rd(String(raw[0][2]).replace(',', '.')) || tasa;
                             const newGlobalCom = rd(String(raw[0][4]).replace(',', '.')) || globalComicion;
@@ -235,7 +227,6 @@
                             setGlobalComicion(newGlobalCom);
                             sessionStorage.setItem('app_global_com_v7', newGlobalCom);
                         }
-
                         let headerIdx = raw.findIndex(r => r.some(c => String(c || '').toLowerCase().includes('artículo')));
                         if (headerIdx === -1) headerIdx = 1;
                         const headers = raw[headerIdx].map(h => String(h || '').trim());
@@ -266,22 +257,11 @@
             const exportToExcel = () => {
                 if (data.length === 0) return;
                 const exportData = data.map(item => ({
-                    "ID": String(item.id).slice(-6),
-                    "tipo": item.tipo,
-                    "Comicion": rd(item.comicionFactor),
-                    "Comercio": item.comercio,
-                    "Artículo": item.articulo,
-                    "Unida": rd(item.unida),
-                    "Valor Total": rd(item.valorTotalBs),
-                    "Tasa compra": rd(item.tasaCompra),
-                    "costoTotal $": rd(item.costoTotalUsd),
-                    "Comicion MONTO": rd(item.comicionCalc),
-                    "Ganacia": rd(item.ganacia),
-                    "Venta": rd(item.venta),
-                    "unitario$": rd(item.unitarioUsd),
-                    "precio unitario BS": rd(item.precioUnitarioBs),
-                    "% INDIVIDUAL": rd(item.pctIndividual),
-                    "INDIVIDUAL": rd(item.individualBs)
+                    "ID": String(item.id).slice(-6), "tipo": item.tipo, "Comicion": rd(item.comicionFactor), "Comercio": item.comercio,
+                    "Artículo": item.articulo, "Unida": rd(item.unida), "Valor Total": rd(item.valorTotalBs), "Tasa compra": rd(item.tasaCompra),
+                    "costoTotal $": rd(item.costoTotalUsd), "Comicion MONTO": rd(item.comicionCalc), "Ganacia": rd(item.ganacia),
+                    "Venta": rd(item.venta), "unitario$": rd(item.unitarioUsd), "precio unitario BS": rd(item.precioUnitarioBs),
+                    "% INDIVIDUAL": rd(item.pctIndividual), "INDIVIDUAL": rd(item.individualBs)
                 }));
                 const ws = XLSX.utils.json_to_sheet(exportData);
                 const wb = XLSX.utils.book_new();
@@ -306,45 +286,29 @@
                     const priceBs = rd(isIndividual ? product.individualBs : product.precioUnitarioBs);
                     const priceUsd = rd(isIndividual ? (product.individualBs / tasa) : product.unitarioUsd);
                     const label = isIndividual ? `${product.articulo} (IND)` : product.articulo;
-                    let itemProfitBs = rd(isIndividual ? (priceBs - ((rd(product.costoTotalUsd) / (rd(product.unida) || 1)) / (String(product.tipo).toUpperCase() === 'CIGARROS' ? 20 : 1) * tasa) - ((priceBs / tasa) * globalComicion * tasa)) : (rd(product.ganacia) / (rd(product.unida) || 1)) * tasa);
+                    let profit = isIndividual ? (priceBs - ((rd(product.costoTotalUsd) / (rd(product.unida) || 1)) / (String(product.tipo).toUpperCase() === 'CIGARROS' ? 20 : 1) * tasa) - ((priceBs / tasa) * globalComicion * tasa)) : (rd(product.ganacia) / (rd(product.unida) || 1)) * tasa;
                     if (exists) return prev.map(i => i.cartId === cartId ? { ...i, qty: i.qty + 1 } : i);
-                    return [...prev, { ...product, cartId, isIndividual, qty: 1, cartPriceBs: priceBs, cartPriceUsd: priceUsd, cartLabel: label, itemProfitBs }];
+                    return [...prev, { ...product, cartId, isIndividual, qty: 1, cartPriceBs: priceBs, cartPriceUsd: priceUsd, cartLabel: label, itemProfitBs: profit }];
                 });
             };
 
-            const removeFromCart = (cartId) => {
-                setCart(prev => prev.filter(i => i.cartId !== cartId));
-            };
-
-            const updateCartQty = (cartId, delta) => {
-                setCart(prev => prev.map(i => 
-                    i.cartId === cartId ? { ...i, qty: Math.max(1, i.qty + delta) } : i
-                ));
-            };
-
-            const clearCart = () => {
-                if(confirm("¿Estás seguro de que deseas vaciar el carrito?")) {
-                    setCart([]);
-                }
-            };
+            const removeFromCart = (cartId) => setCart(prev => prev.filter(i => i.cartId !== cartId));
+            const updateCartQty = (cartId, delta) => setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
+            const clearCart = () => { if(confirm("¿Vaciar carrito?")) setCart([]); };
 
             const fmt = (v, c = '$') => fmtPrice(v, c, roundTo10);
-
             const uniqueTipos = useMemo(() => ['TODOS', ...Array.from(new Set(data.map(d => String(d.tipo || '').toUpperCase().trim()))).filter(Boolean).sort()], [data]);
             const filteredData = useMemo(() => data.filter(i => (String(i.articulo).toLowerCase().includes(filter.toLowerCase()) || String(i.tipo).toLowerCase().includes(filter.toLowerCase())) && (filterTipo === 'TODOS' || String(i.tipo || '').toUpperCase().trim() === filterTipo)), [data, filter, filterTipo]);
-            
             const cartTotals = useMemo(() => {
                 let totalUsd = 0, totalBs = 0, totalProfitBs = 0;
-                cart.forEach(item => { 
-                    totalUsd += rd(rd(item.cartPriceUsd) * item.qty); 
-                    totalBs += rd(rd(item.cartPriceBs) * item.qty); 
-                    totalProfitBs += rd(rd(item.itemProfitBs) * item.qty); 
-                });
+                cart.forEach(item => { totalUsd += rd(rd(item.cartPriceUsd) * item.qty); totalBs += rd(rd(item.cartPriceBs) * item.qty); totalProfitBs += rd(rd(item.itemProfitBs) * item.qty); });
                 return { totalUsd: rd(totalUsd), totalBs: rd(totalBs), totalProfitBs: rd(totalProfitBs) };
             }, [cart]);
 
             return (
                 <div className="min-h-screen flex flex-col bg-slate-50 overflow-x-hidden">
+                    
+                    {/* INDICADOR BCV FIJO */}
                     <div className="bcv-header-container">
                         <div className="bcv-tab animate-fade" onClick={fetchRates}>
                             <div className="bcv-item">
@@ -353,8 +317,15 @@
                             </div>
                         </div>
                     </div>
+					
+                    {/* INDICADOR CARRITO FIJO MODIFICADO: MÁS GRANDE */}
+                    <div className="carrito-fijo-izq">
+                        <button onClick={() => setView('cart')} className={`boton-carrito-grande border-2 ${view === 'cart' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-red-600 border-red-100'}`}>
+                            CARRITO {cart.length > 0 && <span className="cart-badge-grande">{cart.reduce((a,b)=>a+b.qty, 0)}</span>}
+                        </button>
+                    </div>
 
-                    <header className="glass sticky top-0 z-50 px-2 py-2 md:px-4 pt-10 md:pt-10">
+                    <header className="glass sticky top-0 z-50 px-2 py-2 md:px-4 pt-16 md:pt-16">
                         <div className="max-w-[1600px] mx-auto flex flex-col gap-2 lg:flex-row items-center justify-between">
                             <div className="flex items-center gap-1.5 w-full lg:w-auto">
                                 <div className="bg-indigo-600 p-1.5 rounded-lg shadow-md">
@@ -399,13 +370,9 @@
                                 <div className="flex justify-between items-center mb-4 gap-2">
                                     <h2 className="text-xs font-black text-slate-900 uppercase tracking-tighter">Vista: {view}</h2>
                                     <div className="flex gap-1.5">
-                                        <button onClick={exportToExcel} className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-3 py-1.5 rounded-lg text-[9px] font-black flex items-center gap-1 hover:bg-emerald-100">
-                                            EXPORTAR
-                                        </button>
+                                        <button onClick={exportToExcel} className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-3 py-1.5 rounded-lg text-[9px] font-black flex items-center gap-1 hover:bg-emerald-100">EXPORTAR</button>
                                         {view === 'details' && (
-                                            <button onClick={() => setIsEditing(!isEditing)} className={`${isEditing ? 'bg-emerald-500' : 'bg-indigo-600'} text-white px-3 py-1.5 rounded-lg text-[9px] font-black`}>
-                                                {isEditing ? 'FINALIZAR' : 'EDITAR'}
-                                            </button>
+                                            <button onClick={() => setIsEditing(!isEditing)} className={`${isEditing ? 'bg-emerald-500' : 'bg-indigo-600'} text-white px-3 py-1.5 rounded-lg text-[9px] font-black`}>{isEditing ? 'FINALIZAR' : 'EDITAR'}</button>
                                         )}
                                         <button onClick={addNewItem} className="bg-white border border-slate-200 text-slate-800 px-3 py-1.5 rounded-lg text-[9px] font-black">+ NUEVO</button>
                                     </div>
@@ -433,8 +400,7 @@
                                                     </div>
                                                     {(rd(item.individualBs) > 0 || String(item.tipo).toUpperCase() === 'CIGARROS') && (
                                                         <div className="mt-1 flex justify-between items-center bg-amber-50 text-amber-600 px-2 py-1 rounded-lg border border-amber-100 font-bold text-[9px]">
-                                                            <span>Ind. Bs</span>
-                                                            <span>{fmt(item.individualBs, 'VES')}</span>
+                                                            <span>Ind. Bs</span><span>{fmt(item.individualBs, 'VES')}</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -448,17 +414,10 @@
                                         <div className="flex-1 space-y-2">
                                             <div className="flex justify-between items-center mb-2">
                                                 <h3 className="text-[10px] font-black text-slate-400 uppercase">Productos Seleccionados</h3>
-                                                {cart.length > 0 && (
-                                                    <button onClick={clearCart} className="text-red-500 font-black text-[9px] hover:text-red-700 underline uppercase tracking-tighter">
-                                                        VACIAR CARRITO
-                                                    </button>
-                                                )}
+                                                {cart.length > 0 && <button onClick={clearCart} className="text-red-500 font-black text-[9px] hover:text-red-700 underline uppercase tracking-tighter">VACIAR CARRITO</button>}
                                             </div>
-                                            
                                             {cart.length === 0 ? (
-                                                <div className="text-center p-12 bg-white rounded-2xl border border-slate-100 text-slate-400 text-[10px] italic">
-                                                    Tu carrito está actualmente vacío.
-                                                </div>
+                                                <div className="text-center p-12 bg-white rounded-2xl border border-slate-100 text-slate-400 text-[10px] italic">Tu carrito está vacío.</div>
                                             ) : (
                                                 cart.map(item => (
                                                     <div key={item.cartId} className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
@@ -467,32 +426,13 @@
                                                             <div className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">{fmt(item.cartPriceUsd, '$')} / Unidad</div>
                                                         </div>
                                                         <div className="flex items-center bg-slate-100 rounded-lg p-1">
-                                                            <button 
-                                                                onClick={() => updateCartQty(item.cartId, -1)} 
-                                                                className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md transition-colors"
-                                                            >
-                                                                -
-                                                            </button>
+                                                            <button onClick={() => updateCartQty(item.cartId, -1)} className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md">-</button>
                                                             <span className="w-8 text-center text-[10px] font-black text-slate-900">{item.qty}</span>
-                                                            <button 
-                                                                onClick={() => updateCartQty(item.cartId, 1)} 
-                                                                className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md transition-colors"
-                                                            >
-                                                                +
-                                                            </button>
+                                                            <button onClick={() => updateCartQty(item.cartId, 1)} className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md">+</button>
                                                         </div>
-                                                        <div className="text-right shrink-0 min-w-[85px] font-black text-indigo-600 text-[10px]">
-                                                            {fmt(item.cartPriceBs * item.qty, 'VES')}
-                                                        </div>
-                                                        <button 
-                                                            onClick={() => removeFromCart(item.cartId)} 
-                                                            className="text-slate-300 hover:text-red-500 transition-colors p-1"
-                                                            title="Eliminar del carrito"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" strokeWidth="2.5"></path>
-                                                                <path d="M4 7h16M10 11v6M14 11v6M5 7l1-3h12l1 3" strokeWidth="2.5"></path>
-                                                            </svg>
+                                                        <div className="text-right shrink-0 min-w-[85px] font-black text-indigo-600 text-[10px]">{fmt(item.cartPriceBs * item.qty, 'VES')}</div>
+                                                        <button onClick={() => removeFromCart(item.cartId)} className="text-slate-300 hover:text-red-500 transition-colors p-1">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" strokeWidth="2.5"></path><path d="M4 7h16M10 11v6M14 11v6M5 7l1-3h12l1 3" strokeWidth="2.5"></path></svg>
                                                         </button>
                                                     </div>
                                                 ))
@@ -503,23 +443,12 @@
                                                 <div className="bg-indigo-600 p-5 rounded-2xl text-white shadow-xl sticky top-24">
                                                     <h3 className="text-[10px] font-black mb-4 uppercase tracking-widest opacity-80">Detalle de Cobro</h3>
                                                     <div className="space-y-3">
-                                                        <div className="flex justify-between items-center text-[9px] font-bold opacity-80">
-                                                            <span>TOTAL USD</span>
-                                                            <span>{fmt(cartTotals.totalUsd, '$')}</span>
-                                                        </div>
-                                                        <div className="flex justify-between items-center bg-white/10 p-2.5 rounded-xl font-bold text-[9px] text-emerald-300 border border-white/5">
-                                                            <span>Ganancia Total</span>
-                                                            <span>{fmt(cartTotals.totalProfitBs, 'VES')}</span>
-                                                        </div>
+                                                        <div className="flex justify-between items-center text-[9px] font-bold opacity-80"><span>TOTAL USD</span><span>{fmt(cartTotals.totalUsd, '$')}</span></div>
+                                                        <div className="flex justify-between items-center bg-white/10 p-2.5 rounded-xl font-bold text-[9px] text-emerald-300 border border-white/5"><span>Ganancia Total</span><span>{fmt(cartTotals.totalProfitBs, 'VES')}</span></div>
                                                         <div className="h-px bg-white/20 my-2"></div>
-                                                        <div className="flex justify-between items-end">
-                                                            <span className="text-[10px] font-black uppercase tracking-tighter">Total a Pagar</span>
-                                                            <div className="text-xl font-black leading-none">{fmt(cartTotals.totalBs, 'VES')}</div>
-                                                        </div>
+                                                        <div className="flex justify-between items-end"><span className="text-[10px] font-black uppercase tracking-tighter">Total a Pagar</span><div className="text-xl font-black leading-none">{fmt(cartTotals.totalBs, 'VES')}</div></div>
                                                     </div>
-                                                    <button className="w-full mt-6 bg-white text-indigo-600 py-3 rounded-xl font-black text-[10px] shadow-lg hover:bg-slate-50 transition-colors uppercase tracking-widest">
-                                                        Generar Recibo
-                                                    </button>
+                                                    <button className="w-full mt-6 bg-white text-indigo-600 py-3 rounded-xl font-black text-[10px] shadow-lg hover:bg-slate-50 transition-colors uppercase tracking-widest">Generar Recibo</button>
                                                 </div>
                                             </div>
                                         )}
@@ -554,58 +483,22 @@
                                                 {filteredData.map(item => (
                                                     <tr key={item.id} className="hover:bg-slate-50/50 transition-all group">
                                                         <td className="px-2 py-2 text-slate-400">{String(item.id).slice(-6)}</td>
-                                                        <td className="px-2 py-2 min-w-[80px]">
-                                                            <TableField id={item.id} field="tipo" value={item.tipo} editable isEditing={isEditing} onUpdate={handleUpdateItem} />
-                                                        </td>
-                                                        <td className="px-2 py-2 min-w-[60px]">
-                                                            <TableField id={item.id} field="comicionFactor" value={item.comicionFactor} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
-                                                        </td>
-                                                        <td className="px-2 py-2 min-w-[100px]">
-                                                            <TableField id={item.id} field="comercio" value={item.comercio} editable isEditing={isEditing} onUpdate={handleUpdateItem} />
-                                                        </td>
-                                                        <td className="px-2 py-2 sticky-articulo font-bold">
-                                                            <TableField id={item.id} field="articulo" value={item.articulo} editable isEditing={isEditing} onUpdate={handleUpdateItem} />
-                                                        </td>
-                                                        <td className="px-2 py-2 text-center">
-                                                            <TableField id={item.id} field="unida" value={item.unida} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
-                                                        </td>
-                                                        <td className="px-2 py-2">
-                                                            <TableField id={item.id} field="valorTotalBs" value={item.valorTotalBs} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
-                                                        </td>
-                                                        <td className="px-2 py-2">
-                                                            <TableField id={item.id} field="tasaCompra" value={item.tasaCompra} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
-                                                        </td>
-                                                        
-                                                        <td className="px-2 py-2 bg-emerald-50/10 font-bold text-emerald-600">
-                                                            <TableField id={item.id} field="costoTotalUsd" value={item.costoTotalUsd} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
-                                                        </td>
-                                                        <td className="px-2 py-2 bg-indigo-50/10 font-bold text-indigo-600">
-                                                            <TableField id={item.id} field="comicionCalc" value={item.comicionCalc} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
-                                                        </td>
-                                                        <td className="px-2 py-2">
-                                                            <TableField id={item.id} field="ganacia" value={item.ganacia} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
-                                                        </td>
-                                                        <td className="px-2 py-2">
-                                                            <TableField id={item.id} field="venta" value={item.venta} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
-                                                        </td>
-                                                        <td className="px-2 py-2 font-bold">
-                                                            <TableField id={item.id} field="unitarioUsd" value={item.unitarioUsd} isPrice isUsdField isEditing={isEditing} fmt={fmt} />
-                                                        </td>
-                                                        <td className="px-2 py-2 bg-indigo-50/20 font-black text-indigo-700">
-                                                            <TableField id={item.id} field="precioUnitarioBs" value={item.precioUnitarioBs} isPrice isEditing={isEditing} fmt={fmt} />
-                                                        </td>
-                                                        
-                                                        <td className="px-2 py-2">
-                                                            <TableField id={item.id} field="pctIndividual" value={item.pctIndividual} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} />
-                                                        </td>
-                                                        <td className="px-2 py-2 font-bold">
-                                                            {rd(item.individualBs) > 0 ? fmt(item.individualBs, 'VES') : '-'}
-                                                        </td>
-                                                        <td className="px-2 py-2 text-right">
-                                                            <button onClick={() => { if(confirm("¿Eliminar este registro?")) setData(data.filter(i => i.id !== item.id)) }} className="text-red-300 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100">
-                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" strokeWidth="2.5"></path></svg>
-                                                            </button>
-                                                        </td>
+                                                        <td className="px-2 py-2 min-w-[80px]"><TableField id={item.id} field="tipo" value={item.tipo} editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
+                                                        <td className="px-2 py-2 min-w-[60px]"><TableField id={item.id} field="comicionFactor" value={item.comicionFactor} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
+                                                        <td className="px-2 py-2 min-w-[100px]"><TableField id={item.id} field="comercio" value={item.comercio} editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
+                                                        <td className="px-2 py-2 sticky-articulo font-bold"><TableField id={item.id} field="articulo" value={item.articulo} editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
+                                                        <td className="px-2 py-2 text-center"><TableField id={item.id} field="unida" value={item.unida} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
+                                                        <td className="px-2 py-2"><TableField id={item.id} field="valorTotalBs" value={item.valorTotalBs} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
+                                                        <td className="px-2 py-2"><TableField id={item.id} field="tasaCompra" value={item.tasaCompra} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
+                                                        <td className="px-2 py-2 bg-emerald-50/10 font-bold text-emerald-600"><TableField id={item.id} field="costoTotalUsd" value={item.costoTotalUsd} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
+                                                        <td className="px-2 py-2 bg-indigo-50/10 font-bold text-indigo-600"><TableField id={item.id} field="comicionCalc" value={item.comicionCalc} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
+                                                        <td className="px-2 py-2"><TableField id={item.id} field="ganacia" value={item.ganacia} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
+                                                        <td className="px-2 py-2"><TableField id={item.id} field="venta" value={item.venta} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
+                                                        <td className="px-2 py-2 font-bold"><TableField id={item.id} field="unitarioUsd" value={item.unitarioUsd} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
+                                                        <td className="px-2 py-2 bg-indigo-50/20 font-black text-indigo-700"><TableField id={item.id} field="precioUnitarioBs" value={item.precioUnitarioBs} isPrice isEditing={isEditing} fmt={fmt} /></td>
+                                                        <td className="px-2 py-2"><TableField id={item.id} field="pctIndividual" value={item.pctIndividual} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
+                                                        <td className="px-2 py-2 font-bold">{rd(item.individualBs) > 0 ? fmt(item.individualBs, 'VES') : '-'}</td>
+                                                        <td className="px-2 py-2 text-right"><button onClick={() => { if(confirm("¿Eliminar registro?")) setData(data.filter(i => i.id !== item.id)) }} className="text-red-300 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" strokeWidth="2.5"></path></svg></button></td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -626,6 +519,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-<script type="module" src="/index.tsx"></script>
-</body>
+</body> 
 </html>
