@@ -250,16 +250,11 @@
                 row.unitarioUsd = units > 0 ? rd(row.venta / units) : 0;
                 row.precioUnitarioBs = rd(row.unitarioUsd * gTasa);
                 
-                // Si es cigarro, recalculamos individual si el usuario cambia los montos base.
-                // Si NO es cigarro, solo recalculamos si hay un porcentaje % Individual.
                 if (row.tipo && row.tipo.toUpperCase() === 'CIGARROS') {
                     const pctInd = parseFloat(row.pctIndividual) || 0;
                     row.individualBs = rd((row.precioUnitarioBs / 20) / (1 - pctInd));
                 } else if (parseFloat(row.pctIndividual) > 0) {
-                    // Si tiene porcentaje individual, asumimos que el precio individual es el unitario con ese recargo (o similar lógica deseada)
-                    // Generalmente el usuario lo trae ya calculado en la columna P si no es cigarro.
-                    const pctInd = parseFloat(row.pctIndividual) || 0;
-                    // No sobreescribimos si no es cigarro a menos que sea necesario.
+                    // Lógica para otros productos con porcentaje individual si fuera necesario.
                 }
 
                 return row;
@@ -281,15 +276,26 @@
                         const wb = XLSX.read(bstr, { type: 'binary' });
                         const ws = wb.Sheets[wb.SheetNames[0]];
                         const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                        
+                        // Fila 1 (Índice 0): C1 (Índice 2) es TASA, E1 (Índice 4) es COMICIÓN
+                        if (raw[0]) {
+                            const newTasa = parseFloat(String(raw[0][2]).replace(',', '.')) || tasa;
+                            const newGlobalCom = parseFloat(String(raw[0][4]).replace(',', '.')) || globalComicion;
+                            
+                            setTasa(newTasa);
+                            localStorage.setItem('app_tasa_v7', newTasa);
+                            
+                            setGlobalComicion(newGlobalCom);
+                            localStorage.setItem('app_global_com_v7', newGlobalCom);
+                        }
+
                         let headerIdx = raw.findIndex(r => r.some(c => String(c || '').toLowerCase().includes('artículo')));
                         if (headerIdx === -1) headerIdx = 1;
-                        if (raw[0]) {
-                            if (raw[0][3] !== undefined) setTasa(parseFloat(raw[0][3]) || tasa);
-                            if (raw[0][8] !== undefined) setGlobalComicion(parseFloat(raw[0][8]) || globalComicion);
-                        }
+
                         const headers = raw[headerIdx].map(h => String(h || '').trim());
                         const rows = raw.slice(headerIdx + 1);
                         const find = (n) => headers.findIndex(h => h.toLowerCase().trim() === n.toLowerCase().trim());
+                        
                         const mapping = {
                             tipo: find('tipo'), 
                             comicionFactor: find('Comicion'),
@@ -302,6 +308,7 @@
                             pctIndividual: find('% INDIVIDUAL'),
                             individualBs: find('INDIVIDUAL')
                         };
+                        
                         const formatted = rows.filter(r => r[mapping.articulo]).map((r, i) => {
                             let obj = { id: Date.now() + i };
                             Object.keys(mapping).forEach(k => {
@@ -312,6 +319,7 @@
                                     obj[k] = val || '';
                                 }
                             });
+                            // Aquí usamos el nuevo valor de tasa y comisión que ya seteamos arriba
                             return calculateItem(obj);
                         });
                         setData(formatted);
@@ -341,8 +349,6 @@
 
                     let itemProfitBs = 0;
                     if (isIndividual) {
-                        // Ganancia individual simplificada:
-                        // Si es cigarro, usamos /20, si no, asumimos que el costo es Unitario/1 (o trust Excel)
                         const isCigar = String(product.tipo || '').toUpperCase() === 'CIGARROS';
                         const divisor = isCigar ? 20 : 1;
                         const costIndivUsd = (product.costoTotalUsd / (product.unida || 1)) / divisor;
