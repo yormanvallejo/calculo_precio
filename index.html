@@ -32,40 +32,16 @@
         .editable-input:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1); }
         .read-only-text { padding: 3px 6px; font-size: 0.7rem; display: block; width: 100%; }
 
-        .bcv-header-container {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-            position: fixed; 
-            top: 0;
-            left: 0;
-            z-index: 2000;
-            pointer-events: none;
-        }
-
-        /* MODIFICACIÓN: CARRITO FIJO MÁS GRANDE Y VISIBLE */
-        .carrito-fijo-izq {
+        /* Estilos ajustados para elementos fijos (inmóviles) */
+        .fixed-header-item {
             position: fixed;
-            top: 15px;
-            left: 15px;
-            z-index: 2100;
+            top: 0;
+            z-index: 2000;
+            pointer-events: auto;
         }
-        
-        .boton-carrito-grande {
-            padding: 10px 24px;
-            font-size: 14px; /* Texto más grande */
-            font-weight: 900;
-            border-radius: 12px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .boton-carrito-grande:active { transform: scale(0.95); }
 
         .bcv-tab {
+            left: 20px; /* Posición fija a la izquierda */
             background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%);
             color: white;
             padding: 6px 20px;
@@ -76,13 +52,30 @@
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-top: none;
             backdrop-filter: blur(10px);
-            pointer-events: auto;
             transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             cursor: pointer;
-            min-width: 140px;
+            min-width: 120px;
             justify-content: center;
         }
-        .bcv-tab:hover { padding-bottom: 10px; }
+
+        .cart-tab-fixed {
+            right: 20px; /* Posición fija a la derecha */
+            background: #ef4444;
+            color: white;
+            padding: 6px 20px;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 8px 20px -5px rgba(239, 68, 68, 0.4);
+            display: flex;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-top: none;
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        
+        .bcv-tab:hover, .cart-tab-fixed:hover { padding-bottom: 10px; }
         .bcv-item { display: flex; flex-direction: column; align-items: center; gap: 0; }
         .bcv-label { color: #93c5fd; text-transform: uppercase; font-size: 8px; font-weight: 800; letter-spacing: 0.1em; display: flex; align-items: center; gap: 4px; }
         .bcv-value { font-family: 'JetBrains Mono', monospace; color: #ffffff; font-size: 14px; font-weight: 700; display: flex; align-items: baseline; gap: 2px; }
@@ -91,24 +84,24 @@
         @keyframes pulse-status { 0% { transform: scale(0.9); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.5; } }
         .animate-status { animation: pulse-status 2s infinite ease-in-out; }
 
-        .cart-badge-grande {
-            background: #ef4444;
-            color: white;
-            font-size: 11px;
+        .cart-badge-inline {
+            background: white;
+            color: #ef4444;
+            font-size: 9px;
             font-weight: 900;
-            min-width: 20px;
-            height: 20px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            margin-left: 8px;
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
+
     <script type="text/babel">
         const { useState, useMemo, useEffect, useCallback } = React;
         const rd = (num) => {
@@ -137,7 +130,8 @@
                     />
                 );
             }
-            return <span className={`read-only-text ${color} truncate`}>{isPrice ? fmt(value, isUsdField ? '$' : 'VES') : value}</span>;
+            return <span className={`read-only-text ${color} truncate`}>{isPrice ?
+            fmt(value, isUsdField ? '$' : 'VES') : value}</span>;
         };
 
         const App = () => {
@@ -149,6 +143,7 @@
             const [globalComicion, setGlobalComicion] = useState(0.07); 
             const [filter, setFilter] = useState('');
             const [filterTipo, setFilterTipo] = useState('TODOS');
+            const [sortOrder, setSortOrder] = useState('DEFAULT');
             const [view, setView] = useState('summary'); 
             const [isEditing, setIsEditing] = useState(false);
             const [roundTo10, setRoundTo10] = useState(false);
@@ -161,7 +156,8 @@
                         const usdData = await usdRes.json();
                         setBcvRates({ usd: rd(usdData.promedio || usdData.venta || usdData.price || usdData.compra || null) });
                     }
-                } catch (err) { console.error(err); } finally { setLoadingRates(false); }
+                } catch (err) { console.error(err);
+                } finally { setLoadingRates(false); }
             };
 
             const calculateItem = useCallback((item, gTasa = tasa, gCom = globalComicion) => {
@@ -176,13 +172,13 @@
                 const units = rd(row.unida) || 1;
                 row.unitarioUsd = rd(row.venta / units);
                 row.precioUnitarioBs = rd(row.unitarioUsd * gTasa);
-                const isCigar = String(row.tipo || '').toUpperCase() === 'CIGARROS';
                 const pctInd = rd(row.pctIndividual);
-                if (isCigar) {
-                    row.individualBs = rd((row.precioUnitarioBs / 20) / (1 - pctInd));
-                } else if (pctInd > 0) {
-                    row.individualBs = rd(row.precioUnitarioBs * (1 + pctInd));
-                } else { row.individualBs = 0; }
+                const cantUnid = rd(row.cantidadUnidad) || 1;
+                if (pctInd > 0) {
+                    row.individualBs = rd((row.precioUnitarioBs / cantUnid) / (1 - pctInd));
+                } else {
+                    row.individualBs = 0;
+                }
                 return row;
             }, [tasa, globalComicion]);
 
@@ -220,50 +216,58 @@
                         const ws = wb.Sheets[wb.SheetNames[0]];
                         const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
                         if (raw[0]) {
-                            const newTasa = rd(String(raw[0][2]).replace(',', '.')) || tasa;
-                            const newGlobalCom = rd(String(raw[0][4]).replace(',', '.')) || globalComicion;
-                            setTasa(newTasa);
-                            sessionStorage.setItem('app_tasa_v7', newTasa);
-                            setGlobalComicion(newGlobalCom);
-                            sessionStorage.setItem('app_global_com_v7', newGlobalCom);
+                            const foundTasa = rd(String(raw[0][1]).replace(',', '.')) || tasa;
+                            const foundCom = rd(String(raw[0][3]).replace(',', '.')) || globalComicion;
+                            setTasa(foundTasa);
+                            setGlobalComicion(foundCom);
                         }
-                        let headerIdx = raw.findIndex(r => r.some(c => String(c || '').toLowerCase().includes('artículo')));
+                        let headerIdx = raw.findIndex(r => r && r.some(c => String(c || '').toLowerCase().includes('artículo')));
                         if (headerIdx === -1) headerIdx = 1;
                         const headers = raw[headerIdx].map(h => String(h || '').trim());
                         const rows = raw.slice(headerIdx + 1);
                         const find = (n) => headers.findIndex(h => h.toLowerCase().trim() === n.toLowerCase().trim());
                         const mapping = {
-                            tipo: find('tipo'), comicionFactor: find('Comicion'), comercio: find('Comercio'),
+                            tipo: find('tipo'), 
+                            comicionFactor: find('Comicion'), 
                             articulo: find('Artículo') !== -1 ? find('Artículo') : find('Articulo'),
-                            unida: find('Unida'), valorTotalBs: find('Valor Total'), tasaCompra: find('Tasa compra'),
-                            costoTotalUsd: find('costoTotal $'), pctIndividual: find('% INDIVIDUAL'), individualBs: find('INDIVIDUAL')
+                            unida: find('Unida'), 
+                            valorTotalBs: find('Valor Total') !== -1 ? find('Valor Total') : find('Valor Tota'), 
+                            tasaCompra: find('Tasa compra') !== -1 ? find('Tasa compra') : find('Tasa compr'),
+                            pctIndividual: find('% INDIVIDUAL'),
+                            cantidadUnidad: find('Cantidad unidad')
                         };
-                        const formatted = rows.filter(r => r[mapping.articulo]).map((r, i) => {
+                        const formatted = rows.filter(r => r && r[mapping.articulo]).map((r, i) => {
                             let obj = { id: Date.now() + i };
                             Object.keys(mapping).forEach(k => {
                                 let val = r[mapping[k]];
-                                if (['comicionFactor', 'unida', 'valorTotalBs', 'tasaCompra', 'costoTotalUsd', 'pctIndividual', 'individualBs'].includes(k)) {
+                                if (['comicionFactor', 'unida', 'valorTotalBs', 'tasaCompra', 'pctIndividual', 'cantidadUnidad'].includes(k)) {
                                     obj[k] = rd(String(val || 0).replace(',', '.'));
                                 } else obj[k] = val || '';
                             });
+                            if (!obj.cantidadUnidad) obj.cantidadUnidad = 1;
                             return calculateItem(obj);
                         });
                         setData(formatted);
-                    } catch (err) { alert("Error al procesar el archivo."); }
+                    } catch (err) { alert("Error al procesar el archivo Excel."); }
                 };
                 reader.readAsBinaryString(file);
             };
 
             const exportToExcel = () => {
                 if (data.length === 0) return;
-                const exportData = data.map(item => ({
-                    "ID": String(item.id).slice(-6), "tipo": item.tipo, "Comicion": rd(item.comicionFactor), "Comercio": item.comercio,
-                    "Artículo": item.articulo, "Unida": rd(item.unida), "Valor Total": rd(item.valorTotalBs), "Tasa compra": rd(item.tasaCompra),
-                    "costoTotal $": rd(item.costoTotalUsd), "Comicion MONTO": rd(item.comicionCalc), "Ganacia": rd(item.ganacia),
-                    "Venta": rd(item.venta), "unitario$": rd(item.unitarioUsd), "precio unitario BS": rd(item.precioUnitarioBs),
-                    "% INDIVIDUAL": rd(item.pctIndividual), "INDIVIDUAL": rd(item.individualBs)
-                }));
-                const ws = XLSX.utils.json_to_sheet(exportData);
+                const ws_data = [
+                    ["TASA", tasa, "Comicion", globalComicion],
+                    ["tipo", "Comicion", "", "Artículo", "Unida", "Valor Tota", "Tasa compr", "costoTotal $", "Comicion MONTO", "Ganacia", "Venta", "unitario$", "precio unitario", "% INDIVIDUAL", "INDIVIDUAL", "Cantidad unidad"]
+                ];
+                data.forEach((item, i) => {
+                    const rX = i + 3;
+                    ws_data.push([
+                        item.tipo, rd(item.comicionFactor), "", item.articulo, rd(item.unida), rd(item.valorTotalBs), rd(item.tasaCompra),
+                        { f: `F${rX}/G${rX}` }, { f: `(K${rX}*$D$1)` }, { f: `K${rX}-(H${rX}+I${rX})` }, { f: `H${rX}/B${rX}` },
+                        { f: `K${rX}/E${rX}` }, { f: `L${rX}*$B$1` }, rd(item.pctIndividual), { f: `((M${rX}/P${rX})/(1-N${rX}))` }, rd(item.cantidadUnidad || 1)
+                    ]);
+                });
+                const ws = XLSX.utils.aoa_to_sheet(ws_data);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Inventario");
                 XLSX.writeFile(wb, `Inventario_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
@@ -271,8 +275,8 @@
 
             const addNewItem = () => {
                 const newItem = calculateItem({ 
-                    id: Date.now(), tipo: 'COMIDA', comicionFactor: 0.65, comercio: '-', articulo: 'Nuevo Artículo', 
-                    unida: 1, valorTotalBs: 0, tasaCompra: tasa, costoTotalUsd: 0, pctIndividual: 0, individualBs: 0 
+                    id: Date.now(), tipo: 'COMIDA', comicionFactor: 0.65, articulo: 'Nuevo Artículo', 
+                    unida: 1, valorTotalBs: 0, tasaCompra: tasa, pctIndividual: 0, cantidadUnidad: 1 
                 });
                 setData([...data, newItem]);
                 setView('details');
@@ -286,7 +290,7 @@
                     const priceBs = rd(isIndividual ? product.individualBs : product.precioUnitarioBs);
                     const priceUsd = rd(isIndividual ? (product.individualBs / tasa) : product.unitarioUsd);
                     const label = isIndividual ? `${product.articulo} (IND)` : product.articulo;
-                    let profit = isIndividual ? (priceBs - ((rd(product.costoTotalUsd) / (rd(product.unida) || 1)) / (String(product.tipo).toUpperCase() === 'CIGARROS' ? 20 : 1) * tasa) - ((priceBs / tasa) * globalComicion * tasa)) : (rd(product.ganacia) / (rd(product.unida) || 1)) * tasa;
+                    let profit = isIndividual ? (priceBs - ((rd(product.costoTotalUsd) / (rd(product.unida) || 1)) / (rd(product.cantidadUnidad) || 1) * tasa) - ((priceBs / tasa) * globalComicion * tasa)) : (rd(product.ganacia) / (rd(product.unida) || 1)) * tasa;
                     if (exists) return prev.map(i => i.cartId === cartId ? { ...i, qty: i.qty + 1 } : i);
                     return [...prev, { ...product, cartId, isIndividual, qty: 1, cartPriceBs: priceBs, cartPriceUsd: priceUsd, cartLabel: label, itemProfitBs: profit }];
                 });
@@ -294,38 +298,44 @@
 
             const removeFromCart = (cartId) => setCart(prev => prev.filter(i => i.cartId !== cartId));
             const updateCartQty = (cartId, delta) => setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, qty: Math.max(1, i.qty + delta) } : i));
-            const clearCart = () => { if(confirm("¿Vaciar carrito?")) setCart([]); };
-
+            const clearCart = () => { if(confirm("¿Vaciar el carrito?")) setCart([]); };
             const fmt = (v, c = '$') => fmtPrice(v, c, roundTo10);
             const uniqueTipos = useMemo(() => ['TODOS', ...Array.from(new Set(data.map(d => String(d.tipo || '').toUpperCase().trim()))).filter(Boolean).sort()], [data]);
             const filteredData = useMemo(() => data.filter(i => (String(i.articulo).toLowerCase().includes(filter.toLowerCase()) || String(i.tipo).toLowerCase().includes(filter.toLowerCase())) && (filterTipo === 'TODOS' || String(i.tipo || '').toUpperCase().trim() === filterTipo)), [data, filter, filterTipo]);
+            const sortedData = useMemo(() => {
+                let result = [...filteredData];
+                if (sortOrder === 'ART_AZ') result.sort((a, b) => String(a.articulo).localeCompare(String(b.articulo)));
+                else if (sortOrder === 'ART_ZA') result.sort((a, b) => String(b.articulo).localeCompare(String(a.articulo)));
+                else if (sortOrder === 'PRICE_ASC') result.sort((a, b) => a.precioUnitarioBs - b.precioUnitarioBs);
+                else if (sortOrder === 'PRICE_DESC') result.sort((a, b) => b.precioUnitarioBs - a.precioUnitarioBs);
+                return result;
+            }, [filteredData, sortOrder]);
             const cartTotals = useMemo(() => {
                 let totalUsd = 0, totalBs = 0, totalProfitBs = 0;
-                cart.forEach(item => { totalUsd += rd(rd(item.cartPriceUsd) * item.qty); totalBs += rd(rd(item.cartPriceBs) * item.qty); totalProfitBs += rd(rd(item.itemProfitBs) * item.qty); });
+                cart.forEach(item => { 
+                    totalUsd += rd(rd(item.cartPriceUsd) * item.qty); 
+                    totalBs += rd(rd(item.cartPriceBs) * item.qty); 
+                    totalProfitBs += rd(rd(item.itemProfitBs) * item.qty); 
+                });
                 return { totalUsd: rd(totalUsd), totalBs: rd(totalBs), totalProfitBs: rd(totalProfitBs) };
             }, [cart]);
 
             return (
                 <div className="min-h-screen flex flex-col bg-slate-50 overflow-x-hidden">
-                    
-                    {/* INDICADOR BCV FIJO */}
-                    <div className="bcv-header-container">
-                        <div className="bcv-tab animate-fade" onClick={fetchRates}>
-                            <div className="bcv-item">
-                                <span className="bcv-label"><span className="bcv-status-dot animate-status"></span>BCV</span>
-                                <span className="bcv-value">{loadingRates ? '...' : (bcvRates.usd ? bcvRates.usd.toFixed(2) : '--.--')}<span className="bcv-symbol">Bs.</span></span>
-                            </div>
+                    {/* Elemento BCV Inmóvil */}
+                    <div className="fixed-header-item bcv-tab animate-fade" onClick={fetchRates}>
+                        <div className="bcv-item">
+                            <span className="bcv-label"><span className="bcv-status-dot animate-status"></span>BCV</span>
+                            <span className="bcv-value">{loadingRates ? '...' : (bcvRates.usd ? bcvRates.usd.toFixed(2) : '--.--')}<span className="bcv-symbol">Bs.</span></span>
                         </div>
                     </div>
-					
-                    {/* INDICADOR CARRITO FIJO MODIFICADO: MÁS GRANDE */}
-                    <div className="carrito-fijo-izq">
-                        <button onClick={() => setView('cart')} className={`boton-carrito-grande border-2 ${view === 'cart' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-red-600 border-red-100'}`}>
-                            CARRITO {cart.length > 0 && <span className="cart-badge-grande">{cart.reduce((a,b)=>a+b.qty, 0)}</span>}
-                        </button>
+
+                    {/* Elemento Carrito Inmóvil */}
+                    <div className="fixed-header-item cart-tab-fixed animate-fade" onClick={() => setView('cart')}>
+                        CARRITO {cart.length > 0 && <span className="cart-badge-inline">{cart.reduce((a,b)=>a+b.qty, 0)}</span>}
                     </div>
 
-                    <header className="glass sticky top-0 z-50 px-2 py-2 md:px-4 pt-16 md:pt-16">
+                    <header className="glass sticky top-0 z-50 px-2 py-2 md:px-4 pt-12 md:pt-12">
                         <div className="max-w-[1600px] mx-auto flex flex-col gap-2 lg:flex-row items-center justify-between">
                             <div className="flex items-center gap-1.5 w-full lg:w-auto">
                                 <div className="bg-indigo-600 p-1.5 rounded-lg shadow-md">
@@ -334,19 +344,25 @@
                                 <h1 className="text-sm font-black text-slate-900">Inv<span className="text-indigo-600">Pro</span></h1>
                             </div>
 
-                            <div className="flex-1 max-w-sm w-full flex gap-1.5">
+                            <div className="flex-1 max-w-lg w-full flex gap-1.5">
                                 <input type="text" placeholder="Buscar..." className="flex-1 pl-3 pr-2 py-1.5 bg-slate-100 border-none rounded-lg text-[10px] outline-none" value={filter} onChange={(e) => setFilter(e.target.value)} />
                                 <select value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)} className="bg-slate-100 border-none rounded-lg text-[9px] font-bold px-2 py-1.5 outline-none uppercase text-slate-600">
                                     {uniqueTipos.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
+                                <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="bg-slate-100 border-none rounded-lg text-[9px] font-bold px-2 py-1.5 outline-none uppercase text-indigo-600">
+                                    <option value="DEFAULT">ORDEN: ORIGINAL</option>
+                                    <option value="ART_AZ">ARTÍCULO (A-Z)</option>
+                                    <option value="ART_ZA">ARTÍCULO (Z-A)</option>
+                                    <option value="PRICE_ASC">PRECIO (↑)</option>
+                                    <option value="PRICE_DESC">PRECIO (↓)</option>
+                                </select>
                             </div>
 
                             <div className="flex items-center gap-1.5">
-                                <button onClick={() => { const ns = !roundTo10; setRoundTo10(ns); sessionStorage.setItem('app_rounding', String(ns)); }} className={`px-2 py-1.5 rounded-lg text-[9px] font-black transition-all ${roundTo10 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-400' : 'bg-slate-100 text-slate-500'}`}>REDONDEO</button>
+                                <button onClick={() => { setRoundTo10(!roundTo10); sessionStorage.setItem('app_rounding', String(!roundTo10)); }} className={`px-2 py-1.5 rounded-lg text-[9px] font-black transition-all ${roundTo10 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-400' : 'bg-slate-100 text-slate-500'}`}>REDONDEO</button>
                                 <div className="flex bg-slate-100 p-0.5 rounded-lg">
                                     <button onClick={() => setView('summary')} className={`px-3 py-1 rounded-md text-[9px] font-black ${view === 'summary' ? 'bg-white text-indigo-600' : 'text-slate-500'}`}>CATÁLOGO</button>
                                     <button onClick={() => setView('details')} className={`px-3 py-1 rounded-md text-[9px] font-black ${view === 'details' ? 'bg-white text-indigo-600' : 'text-slate-500'}`}>ADMIN</button>
-                                    <button onClick={() => setView('cart')} className={`px-3 py-1 rounded-md text-[9px] font-black relative ${view === 'cart' ? 'bg-white text-red-600' : 'text-slate-500'}`}>CARRITO{cart.length > 0 && <span className="cart-badge">{cart.reduce((a,b)=>a+b.qty, 0)}</span>}</button>
                                 </div>
                                 <div className="bg-white px-2 py-1 rounded-lg border border-slate-200 flex flex-col items-center">
                                     <span className="text-[7px] font-bold text-slate-400 uppercase leading-none">Tasa</span>
@@ -380,27 +396,25 @@
 
                                 {view === 'summary' && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-10">
-                                        {filteredData.map(item => (
+                                        {sortedData.map(item => (
                                             <div key={item.id} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
                                                 <div className="flex justify-between items-center mb-2">
                                                     <span className="text-[7px] font-black text-indigo-400 uppercase truncate max-w-[60px]">{item.tipo}</span>
                                                     <div className="flex gap-1">
-                                                        {(rd(item.individualBs) > 0 || String(item.tipo).toUpperCase() === 'CIGARROS') && (
-                                                            <button onClick={() => addToCart(item, true)} className="bg-amber-50 text-amber-600 px-1 py-0.5 rounded text-[7px] font-black">IND</button>
-                                                        )}
+                                                        {rd(item.pctIndividual) > 0 && <button onClick={() => addToCart(item, true)} className="bg-amber-50 text-amber-600 px-1 py-0.5 rounded text-[7px] font-black">IND</button>}
                                                         <button onClick={() => addToCart(item)} className="bg-emerald-50 text-emerald-600 px-1 py-0.5 rounded text-[7px] font-black">PACK</button>
                                                     </div>
                                                 </div>
-                                                <h3 className="font-bold text-slate-800 text-[9px] mb-2 h-6 line-clamp-2 leading-tight">{item.articulo}</h3>
+                                                <h3 className="font-bold text-slate-800 text-[9px] mb-2 h-6 line-clamp-2 leading-tight uppercase">{item.articulo}</h3>
                                                 <div className="space-y-1.5 pt-1.5 border-t border-slate-50">
                                                     <div className="flex justify-between items-center text-[8px] font-bold text-slate-400"><span>Unit. $</span><span className="text-slate-700">{fmt(item.unitarioUsd, '$')}</span></div>
                                                     <div className="bg-indigo-600 px-2 py-1.5 rounded-lg flex justify-between items-center text-white">
-                                                        <span className="text-[7px] font-black opacity-80">Bs</span>
+                                                        <span className="text-[7px] font-black opacity-80 uppercase">Bs</span>
                                                         <span className="font-bold text-[10px]">{fmt(item.precioUnitarioBs, 'VES')}</span>
                                                     </div>
-                                                    {(rd(item.individualBs) > 0 || String(item.tipo).toUpperCase() === 'CIGARROS') && (
+                                                    {rd(item.pctIndividual) > 0 && (
                                                         <div className="mt-1 flex justify-between items-center bg-amber-50 text-amber-600 px-2 py-1 rounded-lg border border-amber-100 font-bold text-[9px]">
-                                                            <span>Ind. Bs</span><span>{fmt(item.individualBs, 'VES')}</span>
+                                                            <span className="uppercase">Ind. Bs</span><span>{fmt(item.individualBs, 'VES')}</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -422,18 +436,16 @@
                                                 cart.map(item => (
                                                     <div key={item.cartId} className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
                                                         <div className="flex-1 min-w-0">
-                                                            <h4 className="font-bold text-slate-800 text-[10px] leading-tight truncate">{item.cartLabel}</h4>
+                                                            <h4 className="font-bold text-slate-800 text-[10px] leading-tight truncate uppercase">{item.cartLabel}</h4>
                                                             <div className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">{fmt(item.cartPriceUsd, '$')} / Unidad</div>
                                                         </div>
                                                         <div className="flex items-center bg-slate-100 rounded-lg p-1">
-                                                            <button onClick={() => updateCartQty(item.cartId, -1)} className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md">-</button>
+                                                            <button onClick={() => updateCartQty(item.cartId, -1)} className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md transition-colors">-</button>
                                                             <span className="w-8 text-center text-[10px] font-black text-slate-900">{item.qty}</span>
-                                                            <button onClick={() => updateCartQty(item.cartId, 1)} className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md">+</button>
+                                                            <button onClick={() => updateCartQty(item.cartId, 1)} className="w-6 h-6 flex items-center justify-center text-[10px] font-black text-slate-600 hover:bg-white rounded-md transition-colors">+</button>
                                                         </div>
                                                         <div className="text-right shrink-0 min-w-[85px] font-black text-indigo-600 text-[10px]">{fmt(item.cartPriceBs * item.qty, 'VES')}</div>
-                                                        <button onClick={() => removeFromCart(item.cartId)} className="text-slate-300 hover:text-red-500 transition-colors p-1">
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" strokeWidth="2.5"></path><path d="M4 7h16M10 11v6M14 11v6M5 7l1-3h12l1 3" strokeWidth="2.5"></path></svg>
-                                                        </button>
+                                                        <button onClick={() => removeFromCart(item.cartId)} className="text-slate-300 hover:text-red-500 transition-colors p-1">×</button>
                                                     </div>
                                                 ))
                                             )}
@@ -443,12 +455,11 @@
                                                 <div className="bg-indigo-600 p-5 rounded-2xl text-white shadow-xl sticky top-24">
                                                     <h3 className="text-[10px] font-black mb-4 uppercase tracking-widest opacity-80">Detalle de Cobro</h3>
                                                     <div className="space-y-3">
-                                                        <div className="flex justify-between items-center text-[9px] font-bold opacity-80"><span>TOTAL USD</span><span>{fmt(cartTotals.totalUsd, '$')}</span></div>
-                                                        <div className="flex justify-between items-center bg-white/10 p-2.5 rounded-xl font-bold text-[9px] text-emerald-300 border border-white/5"><span>Ganancia Total</span><span>{fmt(cartTotals.totalProfitBs, 'VES')}</span></div>
+                                                        <div className="flex justify-between items-center text-[9px] font-bold opacity-80 uppercase"><span>TOTAL USD</span><span>{fmt(cartTotals.totalUsd, '$')}</span></div>
+                                                        <div className="flex justify-between items-center bg-white/10 p-2.5 rounded-xl font-bold text-[9px] text-emerald-300 border border-white/5 uppercase"><span>Ganancia Total</span><span>{fmt(cartTotals.totalProfitBs, 'VES')}</span></div>
                                                         <div className="h-px bg-white/20 my-2"></div>
                                                         <div className="flex justify-between items-end"><span className="text-[10px] font-black uppercase tracking-tighter">Total a Pagar</span><div className="text-xl font-black leading-none">{fmt(cartTotals.totalBs, 'VES')}</div></div>
                                                     </div>
-                                                    <button className="w-full mt-6 bg-white text-indigo-600 py-3 rounded-xl font-black text-[10px] shadow-lg hover:bg-slate-50 transition-colors uppercase tracking-widest">Generar Recibo</button>
                                                 </div>
                                             </div>
                                         )}
@@ -460,45 +471,43 @@
                                         <table className="w-full text-left border-collapse text-[9px]">
                                             <thead>
                                                 <tr className="bg-slate-50/50 border-b border-slate-100 uppercase text-slate-400 font-black">
-                                                    <th className="px-3 py-2">ID</th>
                                                     <th className="px-3 py-2">Tipo</th>
-                                                    <th className="px-3 py-2">Comicion (F)</th>
-                                                    <th className="px-3 py-2">Comercio</th>
+                                                    <th className="px-3 py-2">Comicion</th>
                                                     <th className="px-3 py-2 sticky-articulo">Artículo</th>
                                                     <th className="px-3 py-2 text-center">Unida</th>
                                                     <th className="px-3 py-2">Valor Total</th>
                                                     <th className="px-3 py-2">Tasa Compra</th>
                                                     <th className="px-3 py-2 text-emerald-600 bg-emerald-50/20">costoTotal $</th>
-                                                    <th className="px-3 py-2 text-indigo-600 bg-indigo-50/20">Comicion (C)</th>
+                                                    <th className="px-3 py-2 text-indigo-600 bg-indigo-50/20">Comicion MONTO</th>
                                                     <th className="px-3 py-2">Ganacia</th>
                                                     <th className="px-3 py-2">Venta</th>
                                                     <th className="px-3 py-2 text-indigo-700">unitario$</th>
                                                     <th className="px-3 py-2 font-black bg-indigo-100 text-indigo-800">P. Unit BS</th>
                                                     <th className="px-3 py-2">% IND</th>
                                                     <th className="px-3 py-2">INDIVIDUAL</th>
+                                                    <th className="px-3 py-2">Cant. Unid</th>
                                                     <th className="px-3 py-2"></th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
-                                                {filteredData.map(item => (
+                                                {sortedData.map(item => (
                                                     <tr key={item.id} className="hover:bg-slate-50/50 transition-all group">
-                                                        <td className="px-2 py-2 text-slate-400">{String(item.id).slice(-6)}</td>
                                                         <td className="px-2 py-2 min-w-[80px]"><TableField id={item.id} field="tipo" value={item.tipo} editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
                                                         <td className="px-2 py-2 min-w-[60px]"><TableField id={item.id} field="comicionFactor" value={item.comicionFactor} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
-                                                        <td className="px-2 py-2 min-w-[100px]"><TableField id={item.id} field="comercio" value={item.comercio} editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
                                                         <td className="px-2 py-2 sticky-articulo font-bold"><TableField id={item.id} field="articulo" value={item.articulo} editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
                                                         <td className="px-2 py-2 text-center"><TableField id={item.id} field="unida" value={item.unida} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
                                                         <td className="px-2 py-2"><TableField id={item.id} field="valorTotalBs" value={item.valorTotalBs} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
                                                         <td className="px-2 py-2"><TableField id={item.id} field="tasaCompra" value={item.tasaCompra} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
-                                                        <td className="px-2 py-2 bg-emerald-50/10 font-bold text-emerald-600"><TableField id={item.id} field="costoTotalUsd" value={item.costoTotalUsd} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
-                                                        <td className="px-2 py-2 bg-indigo-50/10 font-bold text-indigo-600"><TableField id={item.id} field="comicionCalc" value={item.comicionCalc} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
-                                                        <td className="px-2 py-2"><TableField id={item.id} field="ganacia" value={item.ganacia} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
-                                                        <td className="px-2 py-2"><TableField id={item.id} field="venta" value={item.venta} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
-                                                        <td className="px-2 py-2 font-bold"><TableField id={item.id} field="unitarioUsd" value={item.unitarioUsd} isPrice isUsdField isEditing={isEditing} fmt={fmt} /></td>
-                                                        <td className="px-2 py-2 bg-indigo-50/20 font-black text-indigo-700"><TableField id={item.id} field="precioUnitarioBs" value={item.precioUnitarioBs} isPrice isEditing={isEditing} fmt={fmt} /></td>
+                                                        <td className="px-2 py-2 bg-emerald-50/10 font-bold text-emerald-600">{fmt(item.costoTotalUsd, '$')}</td>
+                                                        <td className="px-2 py-2 bg-indigo-50/10 font-bold text-indigo-600">{fmt(item.comicionCalc, '$')}</td>
+                                                        <td className="px-2 py-2">{fmt(item.ganacia, '$')}</td>
+                                                        <td className="px-2 py-2">{fmt(item.venta, '$')}</td>
+                                                        <td className="px-2 py-2 font-bold">{fmt(item.unitarioUsd, '$')}</td>
+                                                        <td className="px-2 py-2 bg-indigo-50/20 font-black text-indigo-700">{fmt(item.precioUnitarioBs, 'VES')}</td>
                                                         <td className="px-2 py-2"><TableField id={item.id} field="pctIndividual" value={item.pctIndividual} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
                                                         <td className="px-2 py-2 font-bold">{rd(item.individualBs) > 0 ? fmt(item.individualBs, 'VES') : '-'}</td>
-                                                        <td className="px-2 py-2 text-right"><button onClick={() => { if(confirm("¿Eliminar registro?")) setData(data.filter(i => i.id !== item.id)) }} className="text-red-300 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7" strokeWidth="2.5"></path></svg></button></td>
+                                                        <td className="px-2 py-2"><TableField id={item.id} field="cantidadUnidad" value={item.cantidadUnidad} type="number" editable isEditing={isEditing} onUpdate={handleUpdateItem} /></td>
+                                                        <td className="px-2 py-2 text-right"><button onClick={() => { if(confirm("¿Eliminar?")) setData(data.filter(i => i.id !== item.id)) }} className="text-red-300 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100">×</button></td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -509,8 +518,8 @@
                         )}
                     </main>
 
-                    <footer className="py-6 px-4 text-center border-t border-slate-100 opacity-40 mt-auto">
-                        <p className="text-[8px] font-bold uppercase tracking-[0.4em]">© {new Date().getFullYear()} INVENTARIO PRO • ECOSISTEMA EMPRESARIAL</p>
+                    <footer className="py-6 px-4 text-center border-t border-slate-100 opacity-40 mt-auto uppercase tracking-widest text-[8px] font-bold">
+                        © {new Date().getFullYear()} INVENTARIO PRO • GESTIÓN EMPRESARIAL
                     </footer>
                 </div>
             );
@@ -519,5 +528,5 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-</body> 
+</body>
 </html>
